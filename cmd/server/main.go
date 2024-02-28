@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"riza/app/web/webhook"
+	"strings"
+	"time"
 
 	"github.com/go-batteries/diaper"
 	"github.com/labstack/echo/v4"
@@ -30,6 +35,10 @@ func main() {
 	if env == "" {
 		env = "dev"
 	}
+
+	var appPort string
+	flag.StringVar(&appPort, "p", "9091", "application port overrides env")
+	flag.Parse()
 
 	dc := diaper.DiaperConfig{
 		Providers:      diaper.Providers{diaper.EnvProvider{}},
@@ -66,7 +75,15 @@ func main() {
 
 	group.POST("/webhook/payload", webhook.GithubWebhookHandler)
 
-	logrus.Infof("starting port at %d\n", cfg.Port)
+	if appPort == "" {
+		appPort = fmt.Sprintf(":%d", cfg.Port)
+	}
+
+	if !strings.HasPrefix(appPort, ":") {
+		appPort = ":" + appPort
+	}
+
+	logrus.Infoln("starting port at ", appPort)
 	data, err := json.MarshalIndent(e.Routes(), "", "  ")
 	if err != nil {
 		logrus.WithError(err).Debugln("failed to get routes")
@@ -74,5 +91,22 @@ func main() {
 		logrus.Debugln(string(data))
 	}
 
-	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", cfg.Port)))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	// Start server
+	go func() {
+		if err := e.Start(appPort); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal("shutting down the server")
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	<-ctx.Done()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
 }
