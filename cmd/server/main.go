@@ -73,6 +73,10 @@ func main() {
 		return c.String(http.StatusOK, "pong")
 	})
 
+	group.GET("/version", func(c echo.Context) error {
+		return c.String(http.StatusOK, "2")
+	})
+
 	group.POST("/webhook/payload", webhook.GithubWebhookHandler)
 
 	if appPort == "" {

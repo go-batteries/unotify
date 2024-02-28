@@ -1,10 +1,12 @@
 package webhook
 
 import (
+	"encoding/json"
 	"net/http"
 	"riza/app/web/apiutils"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 )
 
 type GithubHandler struct{}
@@ -24,6 +26,13 @@ func GithubWebhookHandler(c echo.Context) error {
 				ErrorMessage: apiutils.ErrInternalServerError.Error(),
 			},
 		)
+	}
+
+	b, err := json.MarshalIndent(req.Data, " ", " ")
+	if err != nil {
+		logrus.WithError(err).Error("failed to marshal json response")
+	} else {
+		logrus.Println("response ", string(b))
 	}
 
 	return c.JSON(
