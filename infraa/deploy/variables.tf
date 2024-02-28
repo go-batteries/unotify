@@ -3,6 +3,10 @@ variable AWS_REGION {
   default = "ap-south-1"
 }
 
+variable AWS_ACCOUNT {
+  type = string
+}
+
 variable AWS_PROFILE {
   type = string
   default = "default"
@@ -18,15 +22,16 @@ variable APP_PORT {
   default = 9091
 }
 
+variable ECS_KEY_NAME {
+  type = string
+  default="dash-tf-key-pair"
+}
+
 variable VPC_NAME {
   type = string
   default = "DashDotDashVPC"
 }
 
-variable ECS_KEY_NAME {
-  type = string
-  default = "dash-tf-key-pair"
-}
 
 variable ECS_CLUSTER_NAME {
   type= string

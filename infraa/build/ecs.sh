@@ -8,7 +8,7 @@ AWS_PROFILE="${AWS_PROFILE:-default}"
 aws ecr get-login-password --region ap-south-1 --profile "${AWS_PROFILE}" | docker login --username AWS --password-stdin "${AWS_ACCOUNT}.dkr.ecr.ap-south-1.amazonaws.com"
 
 VERSION=latest
-VERSION=$(git rev-parse --short=8 HEAD)
+# VERSION=$(git rev-parse --short=8 HEAD)
 DOCKER_BUILD_TAG="${APP_NAME}:${VERSION}"
 
 function build() {

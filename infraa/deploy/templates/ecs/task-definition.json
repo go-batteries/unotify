@@ -23,6 +23,19 @@
         "containerPort": ${APP_PORT},
         "hostPort": ${APP_PORT}
       }
+    ],
+    "containerDefinitions": [
+      {
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/${APP_NAME}",
+            "awslogs-region": "ap-south-1",
+            "awslogs-create-group": "true",
+            "awslogs-stream-prefix": "${APP_NAME}"
+          }
+        }
+      }
     ]
   }
 ]

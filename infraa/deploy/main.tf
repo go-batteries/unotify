@@ -16,7 +16,9 @@ provider "aws" {
 }
 
 terraform {
-  backend "local" {}
+  backend "local" {
+    path = "./tfstates/dashsotdash.tfstates"
+  }
   # backend "s3" {} 
 }
 
@@ -37,11 +39,19 @@ resource "aws_subnet" "dashdotdash_subnet" {
   cidr_block        = cidrsubnet(aws_vpc.dashdotdash_vpc.cidr_block, 8, 1)
   availability_zone = "ap-south-1b"
 
+  map_public_ip_on_launch = true
+}
+
+resource "aws_subnet" "dashdotdash_subnet_a" {
+  vpc_id            = aws_vpc.dashdotdash_vpc.id
+  cidr_block        = cidrsubnet(aws_vpc.dashdotdash_vpc.cidr_block, 8, 2)
+  availability_zone = "ap-south-1a"
+
   # map_public_ip_on_launch = true
 }
 
 # setup security group
-resource "aws_security_group" "api_sg" {
+resource "aws_security_group" "app_sg" {
   name = "DashDotDashSg"
   vpc_id = aws_vpc.dashdotdash_vpc.id
 
@@ -52,48 +62,48 @@ resource "aws_security_group" "api_sg" {
     from_port = 22
     to_port = 22
     protocol = "tcp"
-    cidr_block = "0.0.0.0/0"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     from_port = 22
     to_port = 22
     protocol = "tcp"
-    cidr_block = "0.0.0.0/0"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     from_port = 80
     to_port = 80
     protocol = "tcp"
-    cidr_block = "0.0.0.0/0"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     from_port = 443
     to_port = 443
     protocol = "tcp"
-    cidr_block = "0.0.0.0/0"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     from_port = var.APP_PORT
     to_port = var.APP_PORT
     protocol = "tcp"
-    cidr_block = "0.0.0.0/0"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
     from_port = 0
     to_port = 0
     protocol = "-1"
-    cidr_block = "0.0.0.0/0"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
 
 # setup keypair for ssh
-resource "aws_key_pair" "tf-key-pair" {
+resource "aws_key_pair" "dash-tf-key-pair" {
   key_name = var.ECS_KEY_NAME
   public_key = tls_private_key.rsa.public_key_openssh
 }
@@ -105,7 +115,7 @@ resource "tls_private_key" "rsa" {
 
 resource "local_file" "tf-key" {
   content  = tls_private_key.rsa.private_key_pem
-  filename = "dash-tf-key-pair.pem" var.ECS_KEY_NAME
+  filename = "${var.ECS_KEY_NAME}.pem"
 }
 
 
@@ -127,7 +137,7 @@ resource "aws_route_table" "ddd_rt" {
 
 # associate the route table to subnet
 resource "aws_route_table_association" "ddd_subnet_route" {
-  subnet_id = aws_subnet.dashdotdash_vpc.id
+  subnet_id = aws_subnet.dashdotdash_subnet.id
   route_table_id = aws_route_table.ddd_rt.id
 }
 
@@ -141,7 +151,7 @@ resource "aws_lb" "dashdotdash_lb" {
   load_balancer_type = "application"
 
   security_groups = [aws_security_group.app_sg.id]
-  subnets = [aws_subnet.dashdotdash_subnet.id]
+  subnets = [aws_subnet.dashdotdash_subnet.id, aws_subnet.dashdotdash_subnet_a.id]
 
   enable_deletion_protection = false
 
@@ -161,17 +171,33 @@ resource "aws_lb_target_group" "app_lb_tg" {
       unhealthy_threshold = 10    
       timeout             = 10
       interval            = 30    
-      path                = "/ping"    
+      path                = "/arij/ping"    
       port                = "${var.APP_PORT}"
       matcher             = "200-299" 
   }
 }
 
 # setup the LB to listeners to forward requests
-data "aws_lb_listener" "https_lb" {
-  load_balancer_arn = aws_lb.dashdotdash_lb.arn
-  port              = 443
-}
+
+# resource "aws_lb_listener" "https_lb_listener" {
+#     load_balancer_arn = aws_lb.app_lb.arn
+#     port = "443"
+#     protocol = "HTTPS"
+#     certificate_arn   = aws_acm_certificate.server_cert.arn
+#     ssl_policy = "ELBSecurityPolicy-2016-08"
+#
+#     depends_on = [ aws_acm_certificate_validation.server_cert_validator ]
+#
+#     default_action {
+#       type = "fixed-response"
+#  
+#       fixed_response {
+#        content_type = "text/plain"
+#        message_body = "HEALTHY"
+#        status_code  = "200"
+#      }
+#     }
+# }
 
 # resource "aws_lb_listener_rule" "app_server_https_rule" {
 #   listener_arn = aws_lb_listener.https_lb.arn
@@ -189,14 +215,29 @@ data "aws_lb_listener" "https_lb" {
 #   # }
 # }
 
-data "aws_lb_listener" "http_lb" {
+resource "aws_lb_listener" "http_lb_listener" {
   load_balancer_arn = aws_lb.dashdotdash_lb.arn
-  port              = 80
+    port = "80"
+    protocol = "HTTP"
+    # certificate_arn   = aws_acm_certificate.server_cert.arn
+    # ssl_policy = "ELBSecurityPolicy-2016-08"
+    #
+    # depends_on = [ aws_acm_certificate_validation.server_cert_validator ]
+
+    default_action {
+      type = "fixed-response"
+ 
+      fixed_response {
+       content_type = "text/plain"
+       message_body = "HEALTHY"
+       status_code  = "200"
+     }
+    }
 }
 
 
 resource "aws_lb_listener_rule" "app_server_http_rule" {
-  listener_arn = aws_lb_listener.http_lb.arn
+  listener_arn = aws_lb_listener.http_lb_listener.arn
   priority = 100
 
   action {
@@ -204,47 +245,22 @@ resource "aws_lb_listener_rule" "app_server_http_rule" {
       target_group_arn = aws_lb_target_group.app_lb_tg.arn
     }
 
-  # condition {
-  #   host_header {
-  #     values = [""]
-  #   }
-  # }
+  condition {
+    path_pattern {
+      values = ["/arij/*"]
+    }
+  }
 }
 
 
 ## ========================== ECS Cluster ========================== ##
 # create cluster
-reosurce "aws_ecs_cluster" "dashdotdash_cluster" {
+resource "aws_ecs_cluster" "dashdotdash_cluster" {
   name = var.ECS_CLUSTER_NAME
 }
 
-## ========================== Policy Attachment and IAM roles ========================== ##
 # create sts role and iam policy attachment for EcsTaskExecutionRole
-resource "aws_iam_role" "ecs_service_role" {
-  name = "DashDotDashServiceRole"
-  assume_role_policy = jsonencode({
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      }
-    }]
-    Version = "2012-10-17"
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecsInstanceRole" {
-  role       = aws_iam_role.ecs_service_role.name
-  policy_arn =
-  "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-resource "aws_iam_instance_profile" "ecsInstanceProfile" {
-  name = "DashDotDashEcsInstanceProfile"
-  role = aws_iam_role.ecsInstanceRole.name
-}
-
+# iam.tf
 
 ## ========================== ECS Deploy Service ========================== ##
 # create ecs task definition and launch template
@@ -271,11 +287,12 @@ resource "aws_launch_template" "app_server_launch_configuration" {
 
 resource "aws_ecs_task_definition" "server_task_definition" {
     family             = var.APP_NAME
-    task_role_arn      = aws_iam_role.ecsInstanceRole.arn
-    execution_role_arn = aws_iam_role.ecsInstanceRole.arn
+    task_role_arn      = aws_iam_role.ecs_service_role.arn
+    execution_role_arn = aws_iam_role.ecs_service_role.arn
 
     container_definitions = templatefile("${path.module}/templates/ecs/task-definition.json", {
-      IMAGE: format("%s.dkr.ecr.%s.amazonaws.com/%s", var.AWS_ACCOUNT, var.AWS_REGION, var.APP_VERSION),
+      IMAGE: format("%s.dkr.ecr.%s.amazonaws.com/%s:%s", var.AWS_ACCOUNT,
+      var.AWS_REGION, var.APP_NAME, var.APP_VERSION),
       APP_NAME: var.APP_NAME,
       APP_VERSION: var.APP_VERSION,
       APP_PORT: var.APP_PORT
@@ -286,9 +303,11 @@ resource "aws_ecs_task_definition" "server_task_definition" {
 # this will create an ec2 instance using the template
 # run task definition on it
 resource "aws_autoscaling_group" "app_server_ecs_asg" {
-  name = "${vap.APP_NAME}-Asg"
-  vpc_zone_identifier = [aws_subnet.dashdotdash_vpc.id]
-  target_group_arns = [aws_lb_target_group.app_lb_tg]
+  name = "${var.APP_NAME}-Asg"
+  vpc_zone_identifier = [
+    aws_subnet.dashdotdash_subnet.id,
+  ]
+  target_group_arns = [aws_lb_target_group.app_lb_tg.arn]
 
    launch_template {
     id = aws_launch_template.app_server_launch_configuration.id
