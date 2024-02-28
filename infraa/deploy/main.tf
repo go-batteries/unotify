@@ -24,7 +24,7 @@ terraform {
 
 # setup vpc
 resource "aws_vpc" "dashdotdash_vpc" {
-  cidr_block = "10.0.0.0/20"
+  cidr_block = "192.168.0.0/20"
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags       = {
@@ -33,21 +33,27 @@ resource "aws_vpc" "dashdotdash_vpc" {
 }
 
 # setup subnet
-
-resource "aws_subnet" "dashdotdash_subnet" {
+resource "aws_subnet" "dashdotdash_subnet_b" {
   vpc_id            = aws_vpc.dashdotdash_vpc.id
   cidr_block        = cidrsubnet(aws_vpc.dashdotdash_vpc.cidr_block, 8, 1)
   availability_zone = "ap-south-1b"
 
-  map_public_ip_on_launch = true
+  # map_public_ip_on_launch = true
+  tags = {
+    Name = "DDD_SubnetB"
+  }
 }
 
-resource "aws_subnet" "dashdotdash_subnet_a" {
+resource "aws_subnet" "dashdotdash_subnet" {
   vpc_id            = aws_vpc.dashdotdash_vpc.id
   cidr_block        = cidrsubnet(aws_vpc.dashdotdash_vpc.cidr_block, 8, 2)
   availability_zone = "ap-south-1a"
 
-  # map_public_ip_on_launch = true
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "DDD_SubnetA"
+  }
 }
 
 # setup security group
@@ -141,6 +147,11 @@ resource "aws_route_table_association" "ddd_subnet_route" {
   route_table_id = aws_route_table.ddd_rt.id
 }
 
+resource "aws_route_table_association" "ddd_subnet_route_b" {
+  subnet_id = aws_subnet.dashdotdash_subnet_b.id
+  route_table_id = aws_route_table.ddd_rt.id
+}
+
 
 ## ========================== Load Balancer ========================== ##
 # setup a load balance (LB) with target group (TG) pointing to 
@@ -151,7 +162,7 @@ resource "aws_lb" "dashdotdash_lb" {
   load_balancer_type = "application"
 
   security_groups = [aws_security_group.app_sg.id]
-  subnets = [aws_subnet.dashdotdash_subnet.id, aws_subnet.dashdotdash_subnet_a.id]
+  subnets = [aws_subnet.dashdotdash_subnet.id, aws_subnet.dashdotdash_subnet_b.id]
 
   enable_deletion_protection = false
 
@@ -179,62 +190,21 @@ resource "aws_lb_target_group" "app_lb_tg" {
 
 # setup the LB to listeners to forward requests
 
-# resource "aws_lb_listener" "https_lb_listener" {
-#     load_balancer_arn = aws_lb.app_lb.arn
-#     port = "443"
-#     protocol = "HTTPS"
-#     certificate_arn   = aws_acm_certificate.server_cert.arn
-#     ssl_policy = "ELBSecurityPolicy-2016-08"
-#
-#     depends_on = [ aws_acm_certificate_validation.server_cert_validator ]
-#
-#     default_action {
-#       type = "fixed-response"
-#  
-#       fixed_response {
-#        content_type = "text/plain"
-#        message_body = "HEALTHY"
-#        status_code  = "200"
-#      }
-#     }
-# }
-
-# resource "aws_lb_listener_rule" "app_server_https_rule" {
-#   listener_arn = aws_lb_listener.https_lb.arn
-#   priority = 100
-#
-#   action {
-#       type = "forward"
-#       target_group_arn = aws_lb_target_group.app_lb_tg.arn
-#     }
-#
-#   # condition {
-#   #   host_header {
-#   #     values = [""]
-#   #   }
-#   # }
-# }
-
 resource "aws_lb_listener" "http_lb_listener" {
   load_balancer_arn = aws_lb.dashdotdash_lb.arn
-    port = "80"
-    protocol = "HTTP"
-    # certificate_arn   = aws_acm_certificate.server_cert.arn
-    # ssl_policy = "ELBSecurityPolicy-2016-08"
-    #
-    # depends_on = [ aws_acm_certificate_validation.server_cert_validator ]
+  port = "80"
+  protocol = "HTTP"
 
-    default_action {
-      type = "fixed-response"
+  default_action {
+    type = "fixed-response"
  
-      fixed_response {
-       content_type = "text/plain"
-       message_body = "HEALTHY"
-       status_code  = "200"
-     }
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "HEALTHY"
+      status_code  = "200"
     }
+  }
 }
-
 
 resource "aws_lb_listener_rule" "app_server_http_rule" {
   listener_arn = aws_lb_listener.http_lb_listener.arn
@@ -243,7 +213,7 @@ resource "aws_lb_listener_rule" "app_server_http_rule" {
   action {
       type = "forward"
       target_group_arn = aws_lb_target_group.app_lb_tg.arn
-    }
+  }
 
   condition {
     path_pattern {
@@ -265,38 +235,13 @@ resource "aws_ecs_cluster" "dashdotdash_cluster" {
 ## ========================== ECS Deploy Service ========================== ##
 # create ecs task definition and launch template
 # this cluster name should match the cluster name in the ecs.sh file
-locals {
-  ecs_sh_content = templatefile("${path.module}/templates/ecs/ecs.sh", {
-    ECS_CLUSTER_NAME = var.ECS_CLUSTER_NAME
-  })
+
+data "aws_iam_instance_profile" "ecs_instance_profile_arn" {
+  name = "ecsInstanceProfile"
 }
 
-resource "aws_launch_template" "app_server_launch_configuration" {
-  name_prefix = var.APP_NAME
-  image_id      = "ami-027a0367928d05f3e"
-  instance_type = "t2.micro"
-  key_name      = var.ECS_KEY_NAME
-  vpc_security_group_ids = [aws_security_group.app_sg.id]
-
-  iam_instance_profile {
-    arn = aws_iam_instance_profile.ecsInstanceProfile.arn
-  }
-
-  user_data = base64encode(local.ecs_sh_content)
-}
-
-resource "aws_ecs_task_definition" "server_task_definition" {
-    family             = var.APP_NAME
-    task_role_arn      = aws_iam_role.ecs_service_role.arn
-    execution_role_arn = aws_iam_role.ecs_service_role.arn
-
-    container_definitions = templatefile("${path.module}/templates/ecs/task-definition.json", {
-      IMAGE: format("%s.dkr.ecr.%s.amazonaws.com/%s:%s", var.AWS_ACCOUNT,
-      var.AWS_REGION, var.APP_NAME, var.APP_VERSION),
-      APP_NAME: var.APP_NAME,
-      APP_VERSION: var.APP_VERSION,
-      APP_PORT: var.APP_PORT
-    })
+data "aws_iam_role" "ecsTaskExecutionRole" {
+  name = "ecsTaskExecutionRole"
 }
 
 # create autoscaling group using the launch template
@@ -306,6 +251,7 @@ resource "aws_autoscaling_group" "app_server_ecs_asg" {
   name = "${var.APP_NAME}-Asg"
   vpc_zone_identifier = [
     aws_subnet.dashdotdash_subnet.id,
+     aws_subnet.dashdotdash_subnet_b.id,
   ]
   target_group_arns = [aws_lb_target_group.app_lb_tg.arn]
 
@@ -342,6 +288,50 @@ resource "aws_autoscaling_group" "app_server_ecs_asg" {
    propagate_at_launch = true
  }
 }
+
+locals {
+  ecs_sh_content = templatefile("${path.module}/templates/ecs/ecs.sh", {
+    ECS_CLUSTER_NAME = var.ECS_CLUSTER_NAME
+  })
+}
+
+resource "aws_launch_template" "app_server_launch_configuration" {
+  name_prefix = var.APP_NAME
+  image_id      = "ami-027a0367928d05f3e"
+  instance_type = "t2.micro"
+  key_name      = var.ECS_KEY_NAME
+  vpc_security_group_ids = [aws_security_group.app_sg.id]
+
+  iam_instance_profile {
+    arn = data.aws_iam_instance_profile.ecs_instance_profile_arn.arn
+  }
+
+  user_data = base64encode(local.ecs_sh_content)
+  # user_data = filebase64("${path.module}/templates/ecs/dashdotdash.sh")
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = "${var.APP_NAME}"
+    }
+  }
+}
+
+resource "aws_ecs_task_definition" "server_task_definition" {
+    family             = var.APP_NAME
+    task_role_arn      = data.aws_iam_role.ecsTaskExecutionRole.arn
+    execution_role_arn = data.aws_iam_role.ecsTaskExecutionRole.arn
+
+    container_definitions = templatefile("${path.module}/templates/ecs/task-definition.json", {
+      IMAGE: format("%s.dkr.ecr.%s.amazonaws.com/%s:%s", var.AWS_ACCOUNT, var.AWS_REGION, var.APP_NAME, var.APP_VERSION),
+      APP_NAME: var.APP_NAME,
+      APP_VERSION: var.APP_VERSION,
+      APP_PORT: var.APP_PORT
+    })
+}
+
+
 
 # create aws_ecs_service and associate to cluster 
 resource "aws_ecs_service" "app_ecs_service" {

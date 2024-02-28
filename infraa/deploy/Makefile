@@ -5,5 +5,5 @@ run:
 	chmod 600 dash-tf-key-pair.pem
 
 destroy:
-	../build/terrawrapper.sh destroy "./tfstates/dashsotdash.tfplan"
+	../build/terrawrapper.sh destroy 
 

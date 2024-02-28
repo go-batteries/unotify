@@ -1,55 +1,72 @@
 ## ========================== Policy Attachment and IAM roles ========================== ##
 # create sts role and iam policy attachment for EcsTaskExecutionRole
-resource "aws_iam_role" "ecs_service_role" {
-  name = "DashDotDashServiceRole"
-  assume_role_policy = jsonencode({
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      }
-    }]
-    Version = "2012-10-17"
-  })
-}
+# data "aws_iam_policy_document" "ec2_policy_role" {
+#   statement {
+#     actions = ["sts:AssumeRole"]
+#     principals {
+#       type = "Service"
+#       identifiers = ["ec2.amazonaws.com"]
+#     }
+#   }
+# }
 
-resource "aws_iam_policy" "cloudwatch_logs_policy" {
-  name        = "CloudWatchLogsPolicy"
-  description = "IAM policy for CloudWatch Logs"
+# data "aws_iam_policy_document" "ecs_policy_role" {
+#   statement {
+#     actions = ["sts:AssumeRole"]
+#     principals {
+#       type = "Service"
+#       identifiers = ["ecs-tasks.amazonaws.com"]
+#     }
+#   }
+# }
 
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ],
-        Effect   = "Allow",
-        Resource = "arn:aws:logs:${var.AWS_REGION}:${var.AWS_ACCOUNT}:log-group:/ecs/${var.APP_NAME}:*"
-      }
-    ]
-  })
-}
+# data "aws_iam_policy_document" "cloudwatch_policy_role" {
+#   statement {
+#     actions = [
+#       "logs:CreateLogGroup",
+#       "logs:CreateLogStream",
+#       "logs:PutLogEvents"
+#     ]
 
-resource "aws_iam_role_policy_attachment" "ecs_task_poliy_attachment" {
-  role       = aws_iam_role.ecs_service_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
+#     resources = ["*"]
+#   }
+# }
 
-resource "aws_iam_role_policy_attachment" "ecr_access_attachment" {
-  role      = aws_iam_role.ecs_service_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-}
+# resource "aws_iam_role" "ecs_service_role" {
+#   name = "DashDotDashEC2ServiceRole"
+#   assume_role_policy = data.aws_iam_policy_document.ec2_policy_role.json 
+# }
 
-resource "aws_iam_role_policy_attachment" "cloudwatch_logs_attachment" {
-  role      = aws_iam_role.ecs_service_role.name
-  policy_arn = aws_iam_policy.cloudwatch_logs_policy.arn
-}
+# resource "aws_iam_role" "ecs_task_role" {
+#   name = "DashDotDashECSServiceRole"
+#   assume_role_policy = data.aws_iam_policy_document.ecs_policy_role.json
+# }
 
-resource "aws_iam_instance_profile" "ecsInstanceProfile" {
-  name = "DashDotDashEcsInstanceProfile"
-  role = aws_iam_role.ecs_service_role.name
-}
+# resource "aws_iam_role_policy_attachment" "ecs_service_policy_attachment" {
+#   for_each = toset([
+#       "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+#       "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role",
+#       "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+#   ])
+
+#   role       = aws_iam_role.ecs_service_role.name
+#   policy_arn = each.value
+# }
+
+
+# resource "aws_iam_instance_profile" "ecsInstanceProfile" {
+#   name = "DashDotDashInstanceProfile"
+#   role = aws_iam_role.ecs_service_role.name
+# }
+
+# resource "aws_iam_role_policy_attachment" "ecs_task_policy_attachment" {
+#   for_each = toset([
+#       "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+#       "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role",
+#       "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+#   ])
+
+#   role       = aws_iam_role.ecs_task_role.name
+#   policy_arn = each.value
+# }
+
