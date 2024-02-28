@@ -1,0 +1,28 @@
+[
+  {
+    "essential": true,
+    "memory": 512,
+    "name": "${APP_NAME}",
+    "cpu": 1,
+    "image": "${IMAGE}",
+    "ulimits": [
+      {
+        "name": "nofile",
+        "softLimit": 100000,
+        "hardLimit": 203840
+      }
+    ],
+    "environment": [
+      {
+        "name": "APP_VERSION",
+        "value": "${APP_VERSION}"
+      }
+    ],
+    "portMappings": [
+      {
+        "containerPort": ${APP_PORT},
+        "hostPort": ${APP_PORT}
+      }
+    ]
+  }
+]

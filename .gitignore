@@ -1,0 +1,4 @@
+*.pem
+vendor/
+tmp/
+log/

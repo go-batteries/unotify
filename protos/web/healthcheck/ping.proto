@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package web.healthcheck;
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+
+option go_package = "moaz/app/web/healthcheck";
+
+message PingRequest {}
+
+message PingResponse {
+  string text = 1;
+}
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+        title: "moaz";
+        version: "1.0";
+    };
+
+    schemes: HTTP;
+    schemes: HTTPS;
+    consumes: "application/json";
+    produces: "application/json";
+};
+
+service HealthCheck {
+  rpc Ping(PingRequest) returns (PingResponse) {
+    option(google.api.http) = {
+      get: "/ping"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+       summary: "Get ping"; 
+       parameters: {
+           headers: [
+             {
+               name: "x-api-key",
+               type: STRING,
+               format: "json"
+              }
+           ];
+        };
+    };
+  }
+}
+
