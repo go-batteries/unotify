@@ -2,7 +2,6 @@ package resque
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -31,7 +30,8 @@ func NewResqueQ(client *redis.Client, queueName string) *Resqueue {
 func (rsq *Resqueue) EnqueueMsg(ctx context.Context, payload Payload) error {
 	var err error
 
-	queueName := fmt.Sprintf("%s::%s", rsq.queuePrefix, payload.Key)
+	// queueName := fmt.Sprintf("%s::%s", rsq.queuePrefix, payload.Key)
+	queueName := rsq.queuePrefix
 
 	err = rsq.client.RPush(ctx, queueName, string(payload.Message)).Err()
 	if err != nil {
@@ -42,6 +42,7 @@ func (rsq *Resqueue) EnqueueMsg(ctx context.Context, payload Payload) error {
 }
 
 func (rsq *Resqueue) ReadMsg(ctx context.Context, key string) ([]string, error) {
-	queueName := fmt.Sprintf("%s::%s", rsq.queuePrefix, key)
+	// queueName := fmt.Sprintf("%s::%s", rsq.queuePrefix, key)
+	queueName := rsq.queuePrefix
 	return rsq.client.BLPop(ctx, 2*time.Second, queueName).Result()
 }

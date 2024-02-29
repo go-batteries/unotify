@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"riza/app/consumers"
 	"riza/app/deps"
 	"riza/app/pkg/config"
 	"riza/app/web/webhook"
@@ -88,8 +89,15 @@ func main() {
 		}
 	}()
 
+	ghc := consumers.NewGithubEventConsumer(dep.GithubResqueue)
+	// Change this to get All providers::github::repo
+	go ghc.Start(ctx, "providers::github")
+	consumers.GithubDispatcher(ctx, ghc.EventChannel)
+
 	// Wait for interrupt signal to gracefully shutdown the server
 	<-ctx.Done()
+	ghc.Stop()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

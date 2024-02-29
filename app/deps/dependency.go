@@ -14,6 +14,7 @@ import (
 type AppDeps struct {
 	HookRegistrationSvc    *hookers.HookerService
 	GithubEventsRepository *events.EventsRepository
+	GithubResqueue         resque.Queuer
 }
 
 func BuildAppDeps(cfg *config.AppConfig) *AppDeps {
@@ -36,5 +37,6 @@ func BuildAppDeps(cfg *config.AppConfig) *AppDeps {
 	return &AppDeps{
 		HookRegistrationSvc:    hookers.NewHookerService(hookRepo),
 		GithubEventsRepository: events.NewGithubEventsRedisRepo(resqueClient),
+		GithubResqueue:         resqueClient,
 	}
 }
