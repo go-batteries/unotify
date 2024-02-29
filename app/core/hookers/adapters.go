@@ -1,9 +1,10 @@
 package hookers
 
 type RegisterHookRequest struct {
-	Provider string `json:"provider" form:"provider" validate:"required"`
-	RepoID   string `json:"repo_id" form:"repo_id" validate:"required"`
-	RepoPath string `json:"repo_path" form:"repo_path" validate:"required"`
+	Provider    string `json:"provider" form:"provider" validate:"required"`
+	RepoID      string `json:"repo_id" form:"repo_id" validate:"required"`
+	RepoPath    string `json:"repo_path" form:"repo_path" validate:"required"`
+	ForceUpdate bool   `json:"-" form:"-" query:"-" validate:"-"`
 }
 
 type RegisterHookerResponse struct {

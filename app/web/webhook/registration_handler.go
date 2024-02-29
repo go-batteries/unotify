@@ -112,9 +112,9 @@ func ListRegisteredHooksForProvider(svc *hookers.HookerService) echo.HandlerFunc
 	}
 }
 
-func RegisterWebHook(svc *hookers.HookerService) echo.HandlerFunc {
+func RegisterWebHook(svc *hookers.HookerService, forceUpdate bool) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		req := &hookers.RegisterHookRequest{}
+		req := &hookers.RegisterHookRequest{ForceUpdate: forceUpdate}
 		ctx := c.Request().Context()
 
 		if err := c.Bind(req); err != nil {

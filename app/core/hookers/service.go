@@ -10,6 +10,7 @@ import (
 
 type Repository interface {
 	Save(ctx context.Context, hook *Hook) error
+	Update(ctx context.Context, hook *Hook) error
 	All(ctx context.Context, finder *FindHookByProvider) ([]*Hook, error)
 	Find(ctx context.Context, finder *FindHookByProvider) (*Hook, error)
 }
@@ -39,6 +40,7 @@ var (
 var (
 	ErrProvidersEmpty   = errors.New("empty_providers")
 	ErrHooksRecordEmpty = errors.New("empty_records")
+	ErrDuplicateRecord  = errors.New("duplicate_record_creation")
 )
 
 func (repo *CacheRepository) Save(ctx context.Context, hook *Hook) error {
@@ -49,6 +51,33 @@ func (repo *CacheRepository) Save(ctx context.Context, hook *Hook) error {
 	if err := hook.Validate(); err != nil {
 		logrus.WithContext(ctx).WithError(err).Error("failed to validate hook")
 		return ErrHookValidationFailed
+	}
+
+	if ok, _ := repo.client.SIsMember(ctx, buildProviderKey(hook), hook.RepoID).Result(); ok {
+		logrus.WithContext(ctx).Infoln("a hook is already registered. You need to be superadmin, to change code")
+		return ErrDuplicateRecord
+	}
+
+	if err := repo.client.SAdd(ctx, buildProviderKey(hook), hook.RepoID).Err(); err != nil {
+		logrus.WithContext(ctx).WithError(err).Error("failed to add repo path to provider")
+		return err
+	}
+
+	return repo.client.HSet(ctx, buildSecretsKey(hook), hook).Err()
+}
+
+func (repo *CacheRepository) Update(ctx context.Context, hook *Hook) error {
+	if hook == nil {
+		return ErrEmptyResouce
+	}
+
+	if err := hook.Validate(); err != nil {
+		logrus.WithContext(ctx).WithError(err).Error("failed to validate hook")
+		return ErrHookValidationFailed
+	}
+
+	if ok, _ := repo.client.SIsMember(ctx, buildProviderKey(hook), hook.RepoID).Result(); ok {
+		logrus.WithContext(ctx).Infoln("a hook is already registered. Overrriding")
 	}
 
 	if err := repo.client.SAdd(ctx, buildProviderKey(hook), hook.RepoID).Err(); err != nil {
@@ -158,7 +187,12 @@ func (svc *HookerService) Register(
 		return nil, ErrFailedToRegisterHook
 	}
 
-	if err := svc.repo.Save(ctx, hook); err != nil {
+	if req.ForceUpdate {
+		err = svc.repo.Update(ctx, hook)
+	} else {
+		err = svc.repo.Save(ctx, hook)
+	}
+	if err != nil {
 		logrus.WithContext(ctx).WithError(err).Error("failed to store to db")
 		return nil, ErrFailedToPersistHook
 	}

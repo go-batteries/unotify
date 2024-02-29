@@ -53,7 +53,11 @@ func main() {
 
 	group.POST("/webhooks/github/:repo/payload", webhook.ValidateAndPublishWebhook(dep))
 
-	group.POST("/webhooks/register", webhook.RegisterWebHook(dep.HookRegistrationSvc))
+	group.POST("/webhooks/register", webhook.RegisterWebHook(dep.HookRegistrationSvc, false))
+
+	// remove this from load balancer
+	// to put it back, do group.PATCH
+	e.PATCH("/webhooks/update", webhook.RegisterWebHook(dep.HookRegistrationSvc, true))
 
 	group.GET("/webhooks/list", webhook.ListRegisteredHooksForProvider(dep.HookRegistrationSvc))
 	group.GET("/webhooks/find", webhook.FindRegisteredHooks(dep.HookRegistrationSvc))
