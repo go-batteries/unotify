@@ -1,0 +1,249 @@
+{
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "swagger": "2.0",
+  "info": {
+    "title": "healthcheck/ping.proto",
+    "version": "version not set"
+  },
+  "paths": {
+    "/ping": {
+      "get": {
+        "tags": [
+          "HealthCheck"
+        ],
+        "summary": "Get ping",
+        "operationId": "HealthCheck_Ping",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "json",
+            "name": "x-api-key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/healthcheckPingResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        }
+      }
+    },
+    "/rija/webhooks/query": {
+      "get": {
+        "tags": [
+          "Hooker"
+        ],
+        "summary": "Get registerd webhook",
+        "operationId": "Hooker_Show",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "provider",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "repoPath",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/webhooksSearchHookerResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {}
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        }
+      }
+    },
+    "/rija/webhooks/register": {
+      "post": {
+        "tags": [
+          "Hooker"
+        ],
+        "summary": "Register a webhook",
+        "operationId": "Hooker_Register",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/webhooksRegisterHookRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/webhooksRegisterHookResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/webhooksErrorResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "ErrorResponseErrorData": {
+      "type": "object",
+      "properties": {
+        "error_code": {
+          "type": "string",
+          "format": "int64"
+        },
+        "error_msg": {
+          "type": "string"
+        }
+      }
+    },
+    "RegisterHookResponseRegisterHookRespData": {
+      "type": "object",
+      "properties": {
+        "secret": {
+          "type": "string"
+        }
+      }
+    },
+    "SearchHookerResponseSearchHookerData": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "repo_path": {
+          "type": "string"
+        }
+      }
+    },
+    "healthcheckPingResponse": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "webhooksErrorResponse": {
+      "type": "object",
+      "properties": {
+        "errors": {
+          "$ref": "#/definitions/ErrorResponseErrorData"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "webhooksRegisterHookRequest": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "repo_path": {
+          "type": "string"
+        }
+      }
+    },
+    "webhooksRegisterHookResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/RegisterHookResponseRegisterHookRespData"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "webhooksSearchHookerResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/SearchHookerResponseSearchHookerData"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "HealthCheck"
+    },
+    {
+      "name": "Hooker"
+    }
+  ]
+}

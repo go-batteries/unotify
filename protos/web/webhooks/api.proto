@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package web.webhooks;
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "protos/protogen/go/web/webhooks";
+
+message ErrorResponse {
+  bool success = 1;
+
+  message ErrorData {
+    string error_msg = 1 [ json_name = "error_msg" ];
+    int64 error_code = 2 [ json_name = "error_code" ] ;
+  }
+
+  ErrorData errors = 2;
+}
+
+message RegisterHookRequest {
+  string provider = 1 [ json_name = "provider" ];
+  string project_path = 2 [ json_name = "repo_path" ];
+}
+
+message RegisterHookResponse {
+  bool success = 1;
+
+  message RegisterHookRespData {
+    string secret = 1 [ json_name = "secret" ];
+  }
+
+  RegisterHookRespData data = 2;
+}
+
+
+message FindHookByProviderRequest {
+  string provider = 1 ;
+  string repo_path = 2;
+}
+
+message SearchHookerResponse {
+  bool success = 1;
+
+  message SearchHookerData {
+    string provider = 1 [ json_name = "provider" ];
+    string repo_path = 2 [ json_name = "repo_path" ];
+  }
+
+  SearchHookerData data = 2;
+}
+
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+        title: "ticktron";
+        version: "1.0";
+    };
+
+    schemes: HTTP;
+    schemes: HTTPS;
+    consumes: "application/json";
+    produces: "application/json";
+    responses: {
+      key: "500",
+       value: {
+          description: "Internal Server Error",
+          schema: {
+            json_schema: { ref: ".web.webhooks.ErrorResponse" }
+          }
+       }
+    }
+};
+
+service Hooker {
+  rpc Register(RegisterHookRequest) returns (RegisterHookResponse) {
+    option(google.api.http) = {
+      post: "/rija/webhooks/register",
+      body: "*"
+    };
+
+
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Register a webhook", 
+    };
+
+  }
+
+
+  rpc Show(FindHookByProviderRequest) returns (SearchHookerResponse) {
+    option(google.api.http) = {
+      get: "/rija/webhooks/query"
+    };
+
+
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get registerd webhook",
+    };
+  }
+}
+
+

@@ -4,14 +4,30 @@ import "errors"
 
 // error codes
 const (
-	apierrorCode = iota + 100
+	_ = iota
 
-	GithubInternalServerErrorCode
+	CodeInternalServerError
+)
+
+const (
+	_ = iota + 200
+
+	CodeWebhookRegistrationFailed
+	CodeWebhookRequestParamMissing
+	CodeHookerMissing
+)
+
+const (
+	_ = iota + 300
+
+	CodeGithubInternalServerError
 )
 
 // errors
 var (
 	ErrInternalServerError = errors.New("internal_server_error")
+	ErrInvalidRequest      = errors.New("malformed_request")
+	ErrHooksMissing        = errors.New("unregistered_webhook")
 )
 
 type ErrorResponse struct {

@@ -8,26 +8,21 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"riza/app/deps"
+	"riza/app/pkg/config"
 	"riza/app/web/webhook"
 	"strings"
 	"time"
 
-	"github.com/go-batteries/diaper"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
 )
 
-type AppConfig struct {
-	Port        int
-	DatabaseURL string
-	Env         string
-}
-
 var LogLevelMap = map[string]logrus.Level{
 	"debug": logrus.DebugLevel,
 	"error": logrus.ErrorLevel,
-	"_":     logrus.InfoLevel,
+	"":      logrus.InfoLevel,
 }
 
 func main() {
@@ -40,28 +35,10 @@ func main() {
 	flag.StringVar(&appPort, "p", "9091", "application port overrides env")
 	flag.Parse()
 
-	dc := diaper.DiaperConfig{
-		Providers:      diaper.Providers{diaper.EnvProvider{}},
-		DefaultEnvFile: "app.env",
-	}
+	cfg := config.BuildAppConfig(env)
+	dep := deps.BuildAppDeps(cfg)
 
-	cfgMap, err := dc.ReadFromFile(env, "./config/")
-	if err != nil {
-		logrus.WithError(err).Fatal("failed to load config from .env")
-	}
-
-	cfg := AppConfig{
-		Port:        cfgMap.MustGetInt("port"),
-		DatabaseURL: cfgMap.MustGet("database_url").(string),
-		Env:         env,
-	}
-
-	logLevelStr := cfgMap.MustGet("log_level").(string)
-	if logLevelStr == "" {
-		logLevelStr = "_"
-	}
-
-	logrus.SetLevel(LogLevelMap[logLevelStr])
+	logrus.SetLevel(LogLevelMap[cfg.LogLevel])
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -77,7 +54,13 @@ func main() {
 		return c.String(http.StatusOK, "2")
 	})
 
-	group.POST("/webhook/payload", webhook.GithubWebhookHandler)
+	group.POST("/webhook/payload", webhook.GithubWebhookLoggingHandler)
+
+	group.POST("/webhook/github/:project/payload", webhook.GithubWebhookHandler)
+
+	group.POST("/webhooks/register", webhook.RegisterWebHook(dep.HookRegistrationSvc))
+	group.GET("/webhooks/find", webhook.FindRegisteredHooks(dep.HookRegistrationSvc))
+	group.GET("/webhooks/query", webhook.ListRegisteredHooksForProvider(dep.HookRegistrationSvc))
 
 	if appPort == "" {
 		appPort = fmt.Sprintf(":%d", cfg.Port)

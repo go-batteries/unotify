@@ -1,21 +1,21 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE resources (
-  resource_id VARCHAR(255) NOT NULL PRIMARY KEY,
-  resource_type VARCHAR(255) NOT NULL,
-  resource_contact VARCHAR(255) NOT NULL UNIQUE,
-  resource_slug VARCHAR(255) NOT NULL UNIQUE,
-  resource_access_key VARCHAR(255) NOT NULL,
-  access_granted BOOLEAN NOT NULL DEFAULT false,
-  created_at DATETIME WITH TIME ZONE NOT NULL,
-  updated_at DATETIME WITH TIME ZONE NOT NULL
+
+CREATE TABLE hooks (
+  id VARCHAR(100) NOT NULL PRIMARY KEY,
+  hook_slug VARCHAR(120) NOT NULL,
+  hook_secret VARCHAR(255) NOT NULL,
+  allowed_logins TEXT,
 );
 
-CREATE INDEX idx_resource_contact ON resources (resource_contact);
+CREATE TABLE events (
+
+)
+
+CREATE INDEX
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP INDEX idx_resource_contact;
-DROP TABLE resources;
+DROP TABLE ;
 -- +goose StatementEnd

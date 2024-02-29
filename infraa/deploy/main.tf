@@ -79,6 +79,13 @@ resource "aws_security_group" "app_sg" {
   }
 
   ingress {
+    from_port = 6379
+    to_port = 6379
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
     from_port = 80
     to_port = 80
     protocol = "tcp"
@@ -150,6 +157,7 @@ resource "aws_route_table_association" "ddd_subnet_route" {
 resource "aws_route_table_association" "ddd_subnet_route_b" {
   subnet_id = aws_subnet.dashdotdash_subnet_b.id
   route_table_id = aws_route_table.ddd_rt.id
+
 }
 
 
@@ -347,3 +355,4 @@ resource "aws_ecs_service" "app_ecs_service" {
 }
 
 # create loadbalancer with target group and listener
+

@@ -3,6 +3,7 @@ package webhook
 import (
 	"encoding/json"
 	"net/http"
+	"riza/app/deps"
 	"riza/app/web/apiutils"
 
 	"github.com/labstack/echo/v4"
@@ -15,14 +16,14 @@ type GithubWebhookRequest struct {
 	Data map[string]interface{}
 }
 
-func GithubWebhookHandler(c echo.Context) error {
+func GithubWebhookLoggingHandler(c echo.Context) error {
 	req := &GithubWebhookRequest{Data: make(map[string]interface{})}
 
 	if err := c.Bind(&req.Data); err != nil {
 		return c.JSON(
 			http.StatusInternalServerError,
 			apiutils.ErrorResponse{
-				ErrorCode:    apiutils.GithubInternalServerErrorCode,
+				ErrorCode:    apiutils.CodeWebhookRegistrationFailed,
 				ErrorMessage: apiutils.ErrInternalServerError.Error(),
 			},
 		)
@@ -42,4 +43,16 @@ func GithubWebhookHandler(c echo.Context) error {
 			Data:    req.Data,
 		},
 	)
+}
+
+func GithubWebhookHandler(c echo.Context) error {
+	req := &GithubWebhookRequest{Data: make(map[string]interface{})}
+	_ = req
+
+	var project string
+	echo.PathParamsBinder(c).String("project", &project).BindError()
+	return nil
+}
+
+func RegisterHarpoon(dep *deps.AppDeps) {
 }

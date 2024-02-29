@@ -1,0 +1,209 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "ticktron",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "Hooker"
+    }
+  ],
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/rija/webhooks/query": {
+      "get": {
+        "summary": "Get registerd webhook",
+        "operationId": "Hooker_Show",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/webhooksSearchHookerResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {}
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "repoPath",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Hooker"
+        ]
+      }
+    },
+    "/rija/webhooks/register": {
+      "post": {
+        "summary": "Register a webhook",
+        "operationId": "Hooker_Register",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/webhooksRegisterHookResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/webhooksErrorResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/webhooksRegisterHookRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Hooker"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "ErrorResponseErrorData": {
+      "type": "object",
+      "properties": {
+        "error_msg": {
+          "type": "string"
+        },
+        "error_code": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "RegisterHookResponseRegisterHookRespData": {
+      "type": "object",
+      "properties": {
+        "secret": {
+          "type": "string"
+        }
+      }
+    },
+    "SearchHookerResponseSearchHookerData": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "repo_path": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "webhooksErrorResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "errors": {
+          "$ref": "#/definitions/ErrorResponseErrorData"
+        }
+      }
+    },
+    "webhooksRegisterHookRequest": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "repo_path": {
+          "type": "string"
+        }
+      }
+    },
+    "webhooksRegisterHookResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/RegisterHookResponseRegisterHookRespData"
+        }
+      }
+    },
+    "webhooksSearchHookerResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/SearchHookerResponseSearchHookerData"
+        }
+      }
+    }
+  }
+}
