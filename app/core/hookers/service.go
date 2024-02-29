@@ -2,9 +2,7 @@ package hookers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"strings"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -30,6 +28,19 @@ var (
 	ErrHookNotFound         = errors.New("hook_not_registered")
 )
 
+// map[string]map[string]string
+
+// SADD providers::github repo_a repo_b
+// SADD secrets::github::repo_a secret_1 secret_2
+// Nah, this is a problem, multiple secrets per repo not allowed.
+// Switch
+// HSET providers::github repo_a secret_a repo_b secret_b
+// SADD providers::github repo_a repo_b
+var (
+	ErrProvidersEmpty   = errors.New("empty_providers")
+	ErrHooksRecordEmpty = errors.New("empty_records")
+)
+
 func (repo *CacheRepository) Save(ctx context.Context, hook *Hook) error {
 	if hook == nil {
 		return ErrEmptyResouce
@@ -40,66 +51,83 @@ func (repo *CacheRepository) Save(ctx context.Context, hook *Hook) error {
 		return ErrHookValidationFailed
 	}
 
-	b, err := json.Marshal(hook)
-	if err != nil {
-		logrus.WithContext(ctx).WithError(err).Error("failed to marshal hook")
+	if err := repo.client.SAdd(ctx, buildProviderKey(hook), hook.RepoPath).Err(); err != nil {
+		logrus.WithContext(ctx).WithError(err).Error("failed to add repo path to provider")
 		return err
 	}
 
-	repo.client.LPush(ctx, hook.Provider, string(b))
-	return nil
+	return repo.client.HSet(ctx, buildSecretsKey(hook), hook).Err()
 }
 
-var ErrHooksRecordEmpty = errors.New("empty_records")
-
 func (repo *CacheRepository) All(ctx context.Context, finder *FindHookByProvider) ([]*Hook, error) {
-	hooksJSON, err := repo.client.LRange(ctx, finder.Provider, 0, -1).Result()
+	hook := &Hook{
+		Provider: finder.Provider,
+	}
+
+	webhookRepos, err := repo.client.SMembers(ctx, buildProviderKey(hook)).Result()
 	if err != nil {
-		logrus.WithContext(ctx).WithError(err).Error("failed to get registered hook")
+		logrus.WithContext(ctx).WithError(err).Error("failed to get webhooks for provider ", hook.Provider)
 		return nil, err
 	}
 
-	var hooks []*Hook
+	hooks := []*Hook{}
 
-	for _, hookJSON := range hooksJSON {
-		hook := &Hook{}
-
-		err := json.Unmarshal([]byte(hookJSON), &hook)
-		if err != nil {
-			return nil, err
+	for _, repo := range webhookRepos {
+		h := &Hook{
+			Provider: finder.Provider,
+			RepoPath: repo,
 		}
 
-		hooks = append(hooks, hook)
+		hooks = append(hooks, h)
 	}
 
 	if len(hooks) == 0 {
-		err = ErrHooksRecordEmpty
+		return nil, ErrHooksRecordEmpty
 	}
 
-	return hooks, err
+	if !finder.Dive {
+		return hooks, nil
+	}
+
+	for _, hook := range hooks {
+		func(h *Hook) {
+			err := repo.client.HGetAll(ctx, buildSecretsKey(h)).Scan(h)
+			if err != nil {
+				logrus.WithContext(ctx).WithError(err).Error("secrets not configured for the webhook", buildSecretsKey(h))
+				return
+			}
+		}(hook)
+	}
+
+	logrus.WithContext(ctx).Debugf("list repos %+v\n", hooks)
+
+	return hooks, nil
 }
 
 func (repo *CacheRepository) Find(ctx context.Context, finder *FindHookByProvider) (*Hook, error) {
-	hooksJSON, err := repo.client.LRange(ctx, finder.Provider, 0, -1).Result()
+	hook := &Hook{
+		Provider: finder.Provider,
+		RepoPath: finder.RepoPath,
+	}
+
+	isWebHookRegistered, err := repo.client.SIsMember(ctx, buildProviderKey(hook), hook.RepoPath).Result()
 	if err != nil {
-		logrus.WithContext(ctx).WithError(err).Error("failed to get registered hook")
+		logrus.WithContext(ctx).WithError(err).Error("redis call failed to find hook")
 		return nil, err
 	}
 
-	for _, hookJSON := range hooksJSON {
-		hook := &Hook{}
-
-		err := json.Unmarshal([]byte(hookJSON), &hook)
-		if err != nil {
-			return nil, err
-		}
-
-		if strings.EqualFold(hook.RepoPath, finder.RepoPath) {
-			return hook, nil
-		}
+	if !isWebHookRegistered {
+		return nil, ErrHookNotFound
 	}
 
-	return nil, ErrHookNotFound
+	err = repo.client.HGetAll(ctx, buildSecretsKey(hook)).Scan(hook)
+	if err != nil {
+		logrus.WithContext(ctx).WithError(err).Error("failed to get secrets for key")
+	}
+
+	logrus.WithContext(ctx).Debugf("repo details %+v", hook)
+
+	return hook, err
 }
 
 type HookerService struct {
@@ -133,11 +161,11 @@ func (self *HookerService) Register(
 	}
 
 	return &RegisterHookerResponse{
-		Secret: hook.Secret,
+		Secret: hook.Secrets,
 	}, nil
 }
 
-func (self *HookerService) Show(
+func (self *HookerService) FindByRepoProvider(
 	ctx context.Context,
 	finder *FindHookByProvider,
 ) (*SearchHookerResponse, error) {
@@ -150,7 +178,7 @@ func (self *HookerService) Show(
 	}
 
 	return &SearchHookerResponse{
-		Secret:   hook.Secret,
+		Secrets:  hook.Secrets,
 		RepoPath: hook.RepoPath,
 		Provider: hook.Provider,
 	}, nil
@@ -172,7 +200,7 @@ func (self *HookerService) List(
 
 	for _, hook := range hooks {
 		resps = append(resps, &SearchHookerResponse{
-			Secret:   hook.Secret,
+			Secrets:  hook.Secrets,
 			RepoPath: hook.RepoPath,
 			Provider: hook.Provider,
 		})

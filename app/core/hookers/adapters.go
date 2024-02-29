@@ -10,7 +10,7 @@ type RegisterHookerResponse struct {
 }
 
 type SearchHookerResponse struct {
-	Secret   string `json:"-"`
+	Secrets  string `json:"-"`
 	RepoPath string `json:"repo_path,omitempty"`
 	Provider string `json:"provider"`
 }
@@ -18,4 +18,5 @@ type SearchHookerResponse struct {
 type FindHookByProvider struct {
 	Provider string `json:"provider" query:"provider" db:"provider" validate:"required"`
 	RepoPath string `json:"repo_path" query:"repo_path" db:"repo_path"`
+	Dive     bool   `json:"-" query:"-" db:"-" form:"-"`
 }

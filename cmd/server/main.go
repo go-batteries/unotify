@@ -19,12 +19,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var LogLevelMap = map[string]logrus.Level{
-	"debug": logrus.DebugLevel,
-	"error": logrus.ErrorLevel,
-	"":      logrus.InfoLevel,
-}
-
 func main() {
 	env := os.Getenv("ENVIRONMENT")
 	if env == "" {
@@ -36,9 +30,10 @@ func main() {
 	flag.Parse()
 
 	cfg := config.BuildAppConfig(env)
-	dep := deps.BuildAppDeps(cfg)
 
-	logrus.SetLevel(LogLevelMap[cfg.LogLevel])
+	config.SetupLogger(cfg.LogLevel)
+
+	dep := deps.BuildAppDeps(cfg)
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -56,11 +51,12 @@ func main() {
 
 	group.POST("/webhook/payload", webhook.GithubWebhookLoggingHandler)
 
-	group.POST("/webhook/github/:project/payload", webhook.GithubWebhookHandler)
+	group.POST("/webhooks/github/:repo/payload", webhook.ValidateAndPublishWebhook(dep))
 
 	group.POST("/webhooks/register", webhook.RegisterWebHook(dep.HookRegistrationSvc))
+
+	group.GET("/webhooks/list", webhook.ListRegisteredHooksForProvider(dep.HookRegistrationSvc))
 	group.GET("/webhooks/find", webhook.FindRegisteredHooks(dep.HookRegistrationSvc))
-	group.GET("/webhooks/query", webhook.ListRegisteredHooksForProvider(dep.HookRegistrationSvc))
 
 	if appPort == "" {
 		appPort = fmt.Sprintf(":%d", cfg.Port)

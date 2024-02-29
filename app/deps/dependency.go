@@ -2,15 +2,18 @@ package deps
 
 import (
 	"context"
+	"riza/app/core/events"
 	"riza/app/core/hookers"
 	"riza/app/pkg/config"
+	"riza/app/resque"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
 type AppDeps struct {
-	HookRegistrationSvc *hookers.HookerService
+	HookRegistrationSvc    *hookers.HookerService
+	GithubEventsRepository *events.EventsRepository
 }
 
 func BuildAppDeps(cfg *config.AppConfig) *AppDeps {
@@ -28,8 +31,10 @@ func BuildAppDeps(cfg *config.AppConfig) *AppDeps {
 	logrus.Infoln("redis connection success")
 
 	hookRepo := hookers.NewHookerCacheRepository(rdb)
+	resqueClient := resque.NewResqueQ(rdb, "providers::guthub")
 
 	return &AppDeps{
-		HookRegistrationSvc: hookers.NewHookerService(hookRepo),
+		HookRegistrationSvc:    hookers.NewHookerService(hookRepo),
+		GithubEventsRepository: events.NewGithubEventsRedisRepo(resqueClient),
 	}
 }

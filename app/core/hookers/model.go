@@ -3,6 +3,7 @@ package hookers
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -12,9 +13,9 @@ const (
 )
 
 type Hook struct {
-	Provider string `json:"provider" db:"provider" validate:"required"`
-	RepoPath string `json:"repo_path" db:"repo_path" validate:"required"`
-	Secret   string `json:"secret" db:"secret" validate:"required"`
+	Provider string `json:"provider" db:"provider" redis:"provider" validate:"required"`
+	RepoPath string `json:"repo_path" db:"repo_path" redis:"repo_path" validate:"required"`
+	Secrets  string `json:"secret" db:"secret" redis:"secret" validate:"required"`
 }
 
 func (hook *Hook) Validate() error {
@@ -24,6 +25,14 @@ func (hook *Hook) Validate() error {
 
 func (Hook) Table() string {
 	return "hookers"
+}
+
+func buildProviderKey(hook *Hook) string {
+	return fmt.Sprintf("providers::%s", hook.Provider)
+}
+
+func buildSecretsKey(hook *Hook) string {
+	return fmt.Sprintf("secrets::%s::%s", hook.Provider, hook.RepoPath)
 }
 
 type GithubHookOpts func(*Hook)
@@ -36,7 +45,7 @@ func WithGithubRepoPath(repoPath string) GithubHookOpts {
 
 func WithGithubSecretOverride(secret string) GithubHookOpts {
 	return func(h *Hook) {
-		h.Secret = secret
+		h.Secrets = secret
 	}
 }
 
@@ -49,7 +58,7 @@ func NewGithubHook(opts ...GithubHookOpts) (*Hook, error) {
 	hook := &Hook{
 		// ID:       id.String(),
 		Provider: GithubProvider,
-		Secret:   secret,
+		Secrets:  secret,
 	}
 
 	for _, opt := range opts {

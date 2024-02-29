@@ -40,7 +40,7 @@ func FindRegisteredHooks(svc *hookers.HookerService) echo.HandlerFunc {
 			)
 		}
 
-		res, err := svc.Show(ctx, req)
+		res, err := svc.FindByRepoProvider(ctx, req)
 		if err != nil {
 			return c.JSON(
 				http.StatusNotFound,
