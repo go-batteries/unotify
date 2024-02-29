@@ -31,7 +31,7 @@ func BuildAppDeps(cfg *config.AppConfig) *AppDeps {
 	logrus.Infoln("redis connection success")
 
 	hookRepo := hookers.NewHookerCacheRepository(rdb)
-	resqueClient := resque.NewResqueQ(rdb, "providers::guthub")
+	resqueClient := resque.NewResqueQ(rdb, "events::guthub")
 
 	return &AppDeps{
 		HookRegistrationSvc:    hookers.NewHookerService(hookRepo),

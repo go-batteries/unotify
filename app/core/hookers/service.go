@@ -51,7 +51,7 @@ func (repo *CacheRepository) Save(ctx context.Context, hook *Hook) error {
 		return ErrHookValidationFailed
 	}
 
-	if err := repo.client.SAdd(ctx, buildProviderKey(hook), hook.RepoPath).Err(); err != nil {
+	if err := repo.client.SAdd(ctx, buildProviderKey(hook), hook.RepoID).Err(); err != nil {
 		logrus.WithContext(ctx).WithError(err).Error("failed to add repo path to provider")
 		return err
 	}
@@ -75,7 +75,7 @@ func (repo *CacheRepository) All(ctx context.Context, finder *FindHookByProvider
 	for _, repo := range webhookRepos {
 		h := &Hook{
 			Provider: finder.Provider,
-			RepoPath: repo,
+			RepoID:   repo,
 		}
 
 		hooks = append(hooks, h)
@@ -107,10 +107,10 @@ func (repo *CacheRepository) All(ctx context.Context, finder *FindHookByProvider
 func (repo *CacheRepository) Find(ctx context.Context, finder *FindHookByProvider) (*Hook, error) {
 	hook := &Hook{
 		Provider: finder.Provider,
-		RepoPath: finder.RepoPath,
+		RepoID:   finder.RepoID,
 	}
 
-	isWebHookRegistered, err := repo.client.SIsMember(ctx, buildProviderKey(hook), hook.RepoPath).Result()
+	isWebHookRegistered, err := repo.client.SIsMember(ctx, buildProviderKey(hook), hook.RepoID).Result()
 	if err != nil {
 		logrus.WithContext(ctx).WithError(err).Error("redis call failed to find hook")
 		return nil, err
@@ -143,19 +143,22 @@ var (
 	ErrFailedToPersistHook  = errors.New("failed_to_persist_hook")
 )
 
-func (self *HookerService) Register(
+func (svc *HookerService) Register(
 	ctx context.Context,
 	req *RegisterHookRequest,
 ) (*RegisterHookerResponse, error) {
 	logrus.WithContext(ctx).Infoln("registering web hook")
 
-	hook, err := NewGithubHook(WithGithubRepoPath(req.ProjectPath))
+	hook, err := NewGithubHook(
+		WithGithubRepoPath(req.RepoPath),
+		WithGithubRepoID(req.RepoID),
+	)
 	if err != nil {
 		logrus.WithContext(ctx).WithError(err).Error("error failed to generate secret for web hook")
 		return nil, ErrFailedToRegisterHook
 	}
 
-	if err := self.repo.Save(ctx, hook); err != nil {
+	if err := svc.repo.Save(ctx, hook); err != nil {
 		logrus.WithContext(ctx).WithError(err).Error("failed to store to db")
 		return nil, ErrFailedToPersistHook
 	}
@@ -165,13 +168,13 @@ func (self *HookerService) Register(
 	}, nil
 }
 
-func (self *HookerService) FindByRepoProvider(
+func (svc *HookerService) FindByRepoProvider(
 	ctx context.Context,
 	finder *FindHookByProvider,
 ) (*SearchHookerResponse, error) {
 	logrus.WithContext(ctx).Infoln("registering web hook")
 
-	hook, err := self.repo.Find(ctx, finder)
+	hook, err := svc.repo.Find(ctx, finder)
 	if err != nil {
 		logrus.WithContext(ctx).WithError(err).Error("failed to store to db")
 		return nil, ErrFailedToPersistHook
@@ -179,18 +182,18 @@ func (self *HookerService) FindByRepoProvider(
 
 	return &SearchHookerResponse{
 		Secrets:  hook.Secrets,
-		RepoPath: hook.RepoPath,
+		RepoID:   hook.RepoID,
 		Provider: hook.Provider,
 	}, nil
 }
 
-func (self *HookerService) List(
+func (svc *HookerService) List(
 	ctx context.Context,
 	finder *FindHookByProvider,
 ) ([]*SearchHookerResponse, error) {
 	logrus.WithContext(ctx).Infoln("registering web hook")
 
-	hooks, err := self.repo.All(ctx, finder)
+	hooks, err := svc.repo.All(ctx, finder)
 	if err != nil {
 		logrus.WithContext(ctx).WithError(err).Error("failed to store to db")
 		return nil, ErrFailedToPersistHook
@@ -201,7 +204,7 @@ func (self *HookerService) List(
 	for _, hook := range hooks {
 		resps = append(resps, &SearchHookerResponse{
 			Secrets:  hook.Secrets,
-			RepoPath: hook.RepoPath,
+			RepoID:   hook.RepoID,
 			Provider: hook.Provider,
 		})
 	}

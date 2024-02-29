@@ -14,6 +14,7 @@ const (
 
 type Hook struct {
 	Provider string `json:"provider" db:"provider" redis:"provider" validate:"required"`
+	RepoID   string `json:"repo_id" db:"repo_id" redis:"repo_id" validate:"required"`
 	RepoPath string `json:"repo_path" db:"repo_path" redis:"repo_path" validate:"required"`
 	Secrets  string `json:"secret" db:"secret" redis:"secret" validate:"required"`
 }
@@ -32,10 +33,16 @@ func buildProviderKey(hook *Hook) string {
 }
 
 func buildSecretsKey(hook *Hook) string {
-	return fmt.Sprintf("secrets::%s::%s", hook.Provider, hook.RepoPath)
+	return fmt.Sprintf("secrets::%s::%s", hook.Provider, hook.RepoID)
 }
 
 type GithubHookOpts func(*Hook)
+
+func WithGithubRepoID(repoID string) GithubHookOpts {
+	return func(h *Hook) {
+		h.RepoID = repoID
+	}
+}
 
 func WithGithubRepoPath(repoPath string) GithubHookOpts {
 	return func(h *Hook) {

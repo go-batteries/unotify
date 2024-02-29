@@ -46,7 +46,7 @@ func main() {
 	})
 
 	group.GET("/version", func(c echo.Context) error {
-		return c.String(http.StatusOK, "2")
+		return c.String(http.StatusOK, "3")
 	})
 
 	group.POST("/webhook/payload", webhook.GithubWebhookLoggingHandler)

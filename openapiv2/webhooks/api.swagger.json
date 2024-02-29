@@ -128,7 +128,7 @@
         "provider": {
           "type": "string"
         },
-        "repo_path": {
+        "repo_id": {
           "type": "string"
         }
       }
@@ -178,7 +178,7 @@
         "provider": {
           "type": "string"
         },
-        "repo_path": {
+        "repo_id": {
           "type": "string"
         }
       }

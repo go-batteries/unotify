@@ -1,6 +1,9 @@
 FROM golang:1.21 as builder
 
+ENV ENVIRONMENT=prod
+
 WORKDIR /src
+
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
@@ -8,7 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /src/server cmd/server/mai
 
 FROM alpine:3.14
 
-ENV ENV=prod
+ENV ENVIRONMENT=prod
 
 WORKDIR /opt/app
 

@@ -10,10 +10,10 @@ package hookers
 // 		return ErrHookValidationFailed
 // 	}
 //
-// 	// TODO: Sanitize the RepoPath
+// 	// TODO: Sanitize the RepoID
 //
 // 	tx := repo.client.TxPipeline()
-// 	if err := tx.SAdd(ctx, buildProviderKey(hook), hook.RepoPath).Err(); err != nil {
+// 	if err := tx.SAdd(ctx, buildProviderKey(hook), hook.RepoID).Err(); err != nil {
 // 		logrus.WithContext(ctx).WithError(err).Error("failed to add repo to set")
 // 		return err
 // 	}
@@ -27,7 +27,7 @@ package hookers
 // }
 
 // func (repo *CacheRepository) All(ctx context.Context, finder *FindHookByProvider) ([]*Hook, error) {
-// 	hook := &Hook{Provider: finder.Provider, RepoPath: finder.RepoPath}
+// 	hook := &Hook{Provider: finder.Provider, RepoID: finder.RepoID}
 //
 // 	reposForProvider, err := repo.client.SMembers(ctx, buildProviderKey(hook)).Result()
 // 	if err != nil {
@@ -42,7 +42,7 @@ package hookers
 // 	hooks := []*Hook{}
 //
 // 	for _, repoPath := range reposForProvider {
-// 		hooks = append(hooks, &Hook{Provider: hook.Provider, RepoPath: repoPath})
+// 		hooks = append(hooks, &Hook{Provider: hook.Provider, RepoID: repoPath})
 // 	}
 //
 // 	if !finder.Dive {
@@ -66,9 +66,9 @@ package hookers
 // }
 //
 // func (repo *CacheRepository) Find(ctx context.Context, finder *FindHookByProvider) (*Hook, error) {
-// 	hook := &Hook{Provider: finder.Provider, RepoPath: finder.RepoPath}
+// 	hook := &Hook{Provider: finder.Provider, RepoID: finder.RepoID}
 //
-// 	hasProviderRegistered, err := repo.client.SIsMember(ctx, buildProviderKey(hook), hook.RepoPath).Result()
+// 	hasProviderRegistered, err := repo.client.SIsMember(ctx, buildProviderKey(hook), hook.RepoID).Result()
 // 	if err != nil {
 // 		logrus.WithContext(ctx).WithError(err).Error("redis ismembers command failed")
 // 		return nil, err

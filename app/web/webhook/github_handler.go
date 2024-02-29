@@ -75,7 +75,7 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 		svc := dep.HookRegistrationSvc
 		hook, err := svc.FindByRepoProvider(ctx, &hookers.FindHookByProvider{
 			Provider: hookers.GithubProvider,
-			RepoPath: repo,
+			RepoID:   repo,
 		})
 		if err != nil {
 			logrus.WithContext(ctx).WithError(err).Error("failed to find registered webhook")
@@ -98,7 +98,7 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 		logrus.WithContext(ctx).Infoln("hash compare ", expectedHash, githubSignature)
 
 		if ("sha256=" + expectedHash) != githubSignature {
-			logrus.WithContext(ctx).WithError(err).Error("invalid payload signature.")
+			logrus.WithContext(ctx).Error("invalid payload signature.")
 			// return here
 		}
 
@@ -113,7 +113,7 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 		// TODO: validate GithubEvents
 		// TODO: Debounce
 
-		err = dep.GithubEventsRepository.Create(ctx, hook.RepoPath, ev)
+		err = dep.GithubEventsRepository.Create(ctx, hook.RepoID, ev)
 		if err != nil {
 			logrus.WithContext(ctx).WithError(err).Error("failed to push to queueue")
 			return c.JSON(http.StatusTeapot, `{}`)

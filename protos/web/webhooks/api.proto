@@ -20,7 +20,7 @@ message ErrorResponse {
 
 message RegisterHookRequest {
   string provider = 1 [ json_name = "provider" ];
-  string project_path = 2 [ json_name = "repo_path" ];
+  string project_path = 2 [ json_name = "repo_id" ];
 }
 
 message RegisterHookResponse {
@@ -36,7 +36,7 @@ message RegisterHookResponse {
 
 message FindHookByProviderRequest {
   string provider = 1 ;
-  string repo_path = 2;
+  string repo_id = 2;
 }
 
 message SearchHookerResponse {
@@ -44,7 +44,7 @@ message SearchHookerResponse {
 
   message SearchHookerData {
     string provider = 1 [ json_name = "provider" ];
-    string repo_path = 2 [ json_name = "repo_path" ];
+    string repo_id = 2 [ json_name = "repo_id" ];
   }
 
   SearchHookerData data = 2;
