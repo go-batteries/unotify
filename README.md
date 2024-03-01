@@ -9,8 +9,11 @@
 - postgres(optional) or supabase url
 - terraform (for deployment)
 
+**External Depenencies**:
+
 - aws account
-- jira developer account with [an app having write:jira-work](https://developer.atlassian.com/console/myapps)
+- atlassian api key [from here](https://id.atlassian.com/manage-profile/security/api-tokens)
+
 
 ### Deployment:
 

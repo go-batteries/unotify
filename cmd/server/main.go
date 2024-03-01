@@ -40,7 +40,9 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	group := e.Group("/arij")
+	group := e.Group("/conduit")
+
+	// group.POST("/webhook/payload", webhook.GithubWebhookLoggingHandler)
 
 	group.GET("/ping", func(c echo.Context) error {
 		return c.String(http.StatusOK, "pong")
@@ -50,18 +52,17 @@ func main() {
 		return c.String(http.StatusOK, "3")
 	})
 
-	group.POST("/webhook/payload", webhook.GithubWebhookLoggingHandler)
-
 	group.POST("/webhooks/github/:repo/payload", webhook.ValidateAndPublishWebhook(dep))
-
-	group.POST("/webhooks/register", webhook.RegisterWebHook(dep.HookRegistrationSvc, false))
 
 	// remove this from load balancer
 	// to put it back, do group.PATCH
 	e.PATCH("/webhooks/update", webhook.RegisterWebHook(dep.HookRegistrationSvc, true))
 
+	group.POST("/webhooks/register", webhook.RegisterWebHook(dep.HookRegistrationSvc, false))
 	group.GET("/webhooks/list", webhook.ListRegisteredHooksForProvider(dep.HookRegistrationSvc))
 	group.GET("/webhooks/find", webhook.FindRegisteredHooks(dep.HookRegistrationSvc))
+
+	// group.GET("/oauthapp/jira/callback", )
 
 	if appPort == "" {
 		appPort = fmt.Sprintf(":%d", cfg.Port)

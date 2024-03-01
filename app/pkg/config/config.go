@@ -6,11 +6,13 @@ import (
 )
 
 type AppConfig struct {
-	Port        int
-	LogLevel    string
-	DatabaseURL string
-	RedisURL    string
-	Env         string
+	Env             string
+	Port            int
+	LogLevel        string
+	DatabaseURL     string
+	RedisURL        string
+	AtlassianAPIKey string
+	AtlassianURL    string
 }
 
 func BuildAppConfig(env string) *AppConfig {
@@ -25,10 +27,12 @@ func BuildAppConfig(env string) *AppConfig {
 	}
 
 	cfg := &AppConfig{
-		Port:     cfgMap.MustGetInt("port"),
-		Env:      env,
-		RedisURL: cfgMap.MustGet("redis_url").(string),
-		LogLevel: cfgMap.MustGet("log_level").(string),
+		Port:            cfgMap.MustGetInt("port"),
+		Env:             env,
+		RedisURL:        cfgMap.MustGet("redis_url").(string),
+		AtlassianAPIKey: cfgMap.MustGet("atlassian_api_key").(string),
+		AtlassianURL:    cfgMap.MustGet("atlassian_domain_name").(string),
+		LogLevel:        cfgMap.MustGet("log_level").(string),
 	}
 
 	return cfg

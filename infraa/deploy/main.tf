@@ -183,7 +183,7 @@ resource "aws_lb_target_group" "app_lb_tg" {
       unhealthy_threshold = 10    
       timeout             = 10
       interval            = 30    
-      path                = "/arij/ping"    
+      path                = "/conduit/ping"    
       port                = "${var.APP_PORT}"
       matcher             = "200-299" 
   }
