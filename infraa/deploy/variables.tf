@@ -45,6 +45,6 @@ variable APP_NAME {
 
 variable APP_VERSION {
   type = string
-  default = "8f449b2f"
+  default = "38a51e4c"
 }
 

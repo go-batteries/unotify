@@ -9,6 +9,8 @@
 - postgres(optional) or supabase url
 - terraform (for deployment)
 
+- aws account
+- jira developer account with [an app having write:jira-work](https://developer.atlassian.com/console/myapps)
 
 ### Deployment:
 
@@ -17,7 +19,7 @@ AWS_ACCOUNT="" ./infraa/build/ecs.sh
 ```
 
 ```shell
-cd infra/deploy && AWS_ACCOUNT="" make run
+cd infraa/deploy && AWS_ACCOUNT="" make run
 ```
 
 

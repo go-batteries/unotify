@@ -292,12 +292,13 @@ resource "aws_autoscaling_group" "app_server_ecs_asg" {
 
 locals {
   ecs_sh_content = templatefile("${path.module}/templates/ecs/ecs.sh", {
-    ECS_CLUSTER_NAME = var.ECS_CLUSTER_NAME
+    ECS_CLUSTER_NAME = var.ECS_CLUSTER_NAME,
+    REDIS_URL = local.redis_url
   })
 }
 
 resource "aws_launch_template" "app_server_launch_configuration" {
-  name_prefix = var.APP_NAME
+  name_prefix = "DashDotDashServer"
   image_id      = "ami-027a0367928d05f3e"
   instance_type = "t2.micro"
   key_name      = var.ECS_KEY_NAME
