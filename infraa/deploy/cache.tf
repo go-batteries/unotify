@@ -43,4 +43,5 @@ resource "aws_elasticache_cluster" "redis_cache_cluster" {
   engine_version       = "7.1"
   port                 = 6379
   subnet_group_name    = aws_elasticache_subnet_group.redis_cache_group.name
+  security_group_ids = [ aws_security_group.cache_server.id ]
 }
