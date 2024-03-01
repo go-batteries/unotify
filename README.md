@@ -26,17 +26,28 @@ cd infraa/deploy && AWS_ACCOUNT="" make run
 ```
 
 
-### Considerations
+### Whatisthis
 
-- Storage layer is redis for now
-- This helps to have a publish subscribe with redis
-- But some parts of the information needs to be stored in persistent storage,
-  like hook provider configs
+![diagram](./unotify.svg)
+
+
+### Considerations:
+
+- **Jira** Project names **should not have dash** in **project names**.
+    - Allowed: DEV_OPS, DEVOPS, DEV$OPS, etc
+    - NotAllowed: DEV-OPS
+    - you can, but, it won't work. So better not. Will try to change it
+      sometime.
+- Storage layer is `redis` for now.
+- This helps to have a publish subscribe with redis, but we also need storage.
+  So it does publish subscribe, but with `RPUSH` and `BLPOP`
+- Also it uses the same redis, to keep track of registered webhook information.
 - The endpoint url for different projects can be like,
-  `/webhook/provider/:project/payload`, that way for github, the base
+  `/webhook/provider/:repo/payload`, that way for github, the base
   functionality can remain same.
-- You could also provide different paths, but then you have to add them to
-  router. in `cmd/server/main.go`
+- The `:repo` above is just an unique identifier. Since within a github org, the
+  repo names are unique, so that would be a good default, if it doesn't have
+  emojis in it.
 
 Each `Hook` has to implement a `Validate` method. Wether to validate or not,
 depends on the provider.
@@ -55,4 +66,5 @@ In most cases, you will have _a single webhook endpoint per repository, served
 by a single endpoint_ . Reason being it gets harder/tricker to validate secrets
 if a single endpoint had multiple hooks, encrypted with different keys. We don't
 want that sort of complexity.
+
 
