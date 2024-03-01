@@ -319,6 +319,10 @@ resource "aws_launch_template" "app_server_launch_configuration" {
   }
 }
 
+locals {
+  redis_url = "${aws_elasticache_cluster.redis_cache_cluster.cache_nodes[0].address}:${aws_elasticache_cluster.redis_cache_cluster.cache_nodes[0].port}"
+}
+
 resource "aws_ecs_task_definition" "server_task_definition" {
     family             = var.APP_NAME
     task_role_arn      = data.aws_iam_role.ecsTaskExecutionRole.arn
@@ -328,7 +332,8 @@ resource "aws_ecs_task_definition" "server_task_definition" {
       IMAGE: format("%s.dkr.ecr.%s.amazonaws.com/%s:%s", var.AWS_ACCOUNT, var.AWS_REGION, var.APP_NAME, var.APP_VERSION),
       APP_NAME: var.APP_NAME,
       APP_VERSION: var.APP_VERSION,
-      APP_PORT: var.APP_PORT
+      APP_PORT: var.APP_PORT,
+      REDIS_URL: local.redis_url
     })
 }
 

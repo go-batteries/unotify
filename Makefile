@@ -23,4 +23,4 @@ serve.docs: gen.web.proto
 	( bash ./build.docs.sh )
 
 run.server:
-	go run cmd/server/main.go
+	go run -race cmd/server/main.go

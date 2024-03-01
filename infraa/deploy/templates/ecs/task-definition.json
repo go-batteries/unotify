@@ -16,6 +16,10 @@
       {
         "name": "APP_VERSION",
         "value": "${APP_NAME}:${APP_VERSION}"
+      },
+      {
+        "name": "ELASTIC_REDIS_URL",
+        "value": "${REDIS_URL}"
       }
     ],
     "portMappings": [

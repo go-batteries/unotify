@@ -47,3 +47,4 @@ variable APP_VERSION {
   type = string
   default = "8f449b2f"
 }
+
