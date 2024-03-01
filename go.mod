@@ -1,4 +1,4 @@
-module riza
+module unotify
 
 go 1.21.4
 

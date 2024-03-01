@@ -2,7 +2,7 @@ package events
 
 import (
 	"encoding/json"
-	"riza/app/resque"
+	"unotify/app/resque"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"

@@ -2,8 +2,8 @@ package webhook
 
 import (
 	"net/http"
-	"riza/app/core/hookers"
-	"riza/app/web/apiutils"
+	"unotify/app/core/hookers"
+	"unotify/app/web/apiutils"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"

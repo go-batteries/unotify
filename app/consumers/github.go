@@ -2,9 +2,9 @@ package consumers
 
 import (
 	"context"
-	"riza/app/resque"
 	"sync"
 	"time"
+	"unotify/app/resque"
 
 	"github.com/sirupsen/logrus"
 )

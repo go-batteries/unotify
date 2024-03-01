@@ -2,10 +2,10 @@ package deps
 
 import (
 	"context"
-	"riza/app/core/events"
-	"riza/app/core/hookers"
-	"riza/app/pkg/config"
-	"riza/app/resque"
+	"unotify/app/core/events"
+	"unotify/app/core/hookers"
+	"unotify/app/pkg/config"
+	"unotify/app/resque"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
