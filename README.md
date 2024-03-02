@@ -2,17 +2,24 @@
 ### Requirements:
 
 - go v1.21+
-- goose
+- redis
+
+**Document Generation**
+
 - protoc
 - protoc-gen-go
 - protobuf
-- postgres(optional) or supabase url
-- terraform (for deployment)
 
-**External Depenencies**:
 
+**Deployment Support Bundle**:
+
+- terraform 
 - aws account
-- atlassian api key [from here](https://id.atlassian.com/manage-profile/security/api-tokens)
+
+
+**Job Activity**
+
+- atlassian api key [from here](https://id.atlassian.com/manage-profile/security/api-tokens), to state transition jira tickets.
 
 
 ### Deployment:
@@ -28,7 +35,11 @@ cd infraa/deploy && AWS_ACCOUNT="" make run
 
 ### Whatisthis
 
-![diagram](./unotify.svg)
+<div style="height: 200px">
+
+    ![diagram](./unotify.svg)
+
+</div>
 
 
 ### Considerations:
@@ -42,6 +53,9 @@ cd infraa/deploy && AWS_ACCOUNT="" make run
 - This helps to have a publish subscribe with redis, but we also need storage.
   So it does publish subscribe, but with `RPUSH` and `BLPOP`
 - Also it uses the same redis, to keep track of registered webhook information.
+- For state transitions in `Jira`, it needs a `state id`. Which we need to fetch
+  nad keep in application memory with 1 day exipry. This also could move to
+  `redis`, incase the number of projects grow too large.
 - The endpoint url for different projects can be like,
   `/webhook/provider/:repo/payload`, that way for github, the base
   functionality can remain same.

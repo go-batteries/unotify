@@ -20,49 +20,130 @@ func Test_NewHclFileReader(t *testing.T) {
 	require.NoError(t, err, "should not have failed to read statemachine config")
 	require.NotNil(t, config)
 
+	expectedAliasMap := map[string]string{
+		"to_do":       "To Do",
+		"in_progress": "In Progress",
+		"done":        "Done",
+	}
 	assert.Equal(t, "soc", config.Definition.Name)
+	assert.Equal(t, "soc", config.AliasMap.Name)
+	assert.Equal(t, expectedAliasMap, config.AliasMap.Aliases)
 }
 
-func Test_NewStateMachine(t *testing.T) {
+type MockFileReader struct {
+	config *MachineConfig
+}
+
+func (m MockFileReader) Read(
+	ctx context.Context,
+	filePath string,
+) (
+	*MachineConfig,
+	error,
+) {
+	return m.config, nil
+}
+
+var aliasMap = map[string]string{
+	"to_do":      "To Do",
+	"processing": "Processing",
+	"done":       "Done",
+	"failed":     "Failed",
+}
+
+func Test_ProvisionMachine(t *testing.T) {
 	ctx := context.Background()
-	filePath, err := filepath.Abs("../../../config/statemachines/jira.hcl")
-	require.NoError(t, err, "should not have failed to find file")
 
-	machine, err := BuildMachine(ctx, HCLFileReader{}, "soc", filePath)
-	require.NoError(t, err, "should not have failed to initialize state machine")
-	require.NotNil(t, machine)
+	t.Run(
+		"state config fails if not deterministic",
+		func(t *testing.T) {
+			invalidTransition := MachineDefinition{
+				Name:     "valid",
+				StateIDs: []string{"to_do", "processing", "done"},
+				States: []*StateDefinition{
+					{
+						Name:       "to_do",
+						Event:      "next",
+						Transition: "done",
+						Alias:      "To Do",
+					},
+					{
+						Name:       "to_do",
+						Event:      "next",
+						Transition: "processing",
+						Alias:      "To Do",
+					},
+					{
+						Name:       "processing",
+						Event:      "next",
+						Transition: "Done",
+						Alias:      "Processing",
+					},
+					{
+						Name:       "done",
+						Event:      "next",
+						Transition: "<end>",
+						Alias:      "Done",
+					},
+				},
+			}
 
-	evmap, err := machine.GetEventMap(ctx, "To Do")
-	require.NoError(t, err, "should not have failed to get event map")
-	require.NotNil(t, evmap)
+			inValidConfig := &MachineConfig{
+				AliasMap:   AliasMapper{Aliases: aliasMap},
+				Definition: invalidTransition,
+			}
+			sm, err := Provison(
+				ctx,
+				"valid",
+				MockFileReader{inValidConfig},
+				"noopPath",
+			)
 
-	stateData, err := machine.GetStateData(ctx, "To Do")
-	require.NoError(t, err, "should not have failed to get state data")
+			require.Error(t, err, "should have provisioned")
+			assert.Nil(t, sm)
+		})
 
-	assert.Equal(t, stateData.Key, "to_do")
-	assert.Equal(t, stateData.Alias, "To Do")
+	t.Run(
+		"success on valid state config",
+		func(t *testing.T) {
+			validTranistion := MachineDefinition{
+				Name:     "valid",
+				StateIDs: []string{"to_do", "processing", "done"},
+				States: []*StateDefinition{
+					{
+						Name:       "to_do",
+						Event:      "next",
+						Transition: "processing",
+						Alias:      "To Do",
+					},
+					{
+						Name:       "processing",
+						Event:      "next",
+						Transition: "Done",
+						Alias:      "Processing",
+					},
+					{
+						Name:       "done",
+						Event:      "next",
+						Transition: "<end>",
+						Alias:      "Done",
+					},
+				},
+			}
 
-	data, err := machine.Transition(ctx, "To Do", "markup")
-	require.NoError(t, err)
-	require.NotNil(t, data)
+			validConfig := &MachineConfig{
+				AliasMap:   AliasMapper{Aliases: aliasMap},
+				Definition: validTranistion,
+			}
+			sm, err := Provison(
+				ctx,
+				"valid",
+				MockFileReader{validConfig},
+				"noopPath",
+			)
 
-	require.Equal(t, data.Alias, "In Progress")
-
-	data, err = machine.Transition(ctx, "In Progress", "markup")
-	require.NoError(t, err)
-	require.NotNil(t, data)
-
-	require.Equal(t, data.Alias, "Done")
-
-	data, err = machine.Transition(ctx, "In Progress", "markdown")
-	require.NoError(t, err)
-	require.NotNil(t, data)
-
-	require.Equal(t, data.Alias, "To Do")
-
-	data, err = machine.Transition(ctx, "Done", "markup")
-	require.NoError(t, err)
-	require.NotNil(t, data)
-
-	require.Equal(t, data.Alias, "Done")
+			require.NoError(t, err, "should have provisioned")
+			assert.NotNil(t, sm)
+		},
+	)
 }

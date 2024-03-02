@@ -2,216 +2,101 @@ package stateman
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
+	"fmt"
 	"unotify/app/pkg/ds"
-
-	"github.com/sirupsen/logrus"
 )
 
-// StateMachine
-//
-//	ID: unique id, in our case jira project name
-//	Reader: config reader to read state definitions
-//	store:  holds internal state data to answer queries
+type (
+	EventMap      = ds.Map[string, *StateDefinition]
+	StateEventMap = ds.Map[string, EventMap]
+	ConflictsMap  = ds.Map[string, []*StateDefinition]
+)
+
 type StateMachine struct {
-	ID     string
-	Reader StateFileReader
+	ID string
 
-	store StateStore
+	reader StateFileReader
+	store  StateEventMap
 }
 
-type StateData struct {
-	Key         string // in hcl -> state "key"
-	Alias       string
-	Event       string
-	Transitions *ds.Set[string]
-	Terminal    bool
-}
-
-// "markup": {}
-type StateEventMap = ds.Map[string, StateData]
-
-// "state_id": { "markup": {}, "markdown": {} }
-type States map[string]StateEventMap
-
-type StateStore struct {
-	States       States
-	inverseMap   map[string]string
-	stateDataMap map[string]StateData
-}
-
-func (s StateStore) NextState(
-	prevState,
-	event string,
-) (
-	*StateData,
-	error,
-) {
-	evmap, ok := s.States[prevState]
-	if !ok {
-		logrus.Error("state is not in config")
-		return nil, errors.New("unregistered_state")
-	}
-
-	state := evmap.Get(event)
-	if len(state.Key) == 0 {
-		logrus.Error(event, " event is unregistered")
-		return nil, errors.New("unregistered_event")
-	}
-
-	logrus.Printf("%s %s transitions %+v", state.Alias, state.Key, state.Transitions)
-
-	nextStateID := state.Transitions.Get(0)
-	if len(nextStateID) == 0 {
-		logrus.Error("failed to get state id from transitions")
-		return &StateData{}, nil
-	}
-
-	evmap, ok = s.States[nextStateID]
-	if len(nextStateID) == 0 {
-		logrus.Error(nextStateID, " eventMap not found in state store")
-		return &StateData{}, nil
-	}
-
-	nextState, _ := s.stateDataMap[nextStateID]
-	return &nextState, nil
-}
-
-var ErrMismatchMachineConfig = errors.New("invalid_machine_id")
-
-// Trying this probably horrible coding style
-// Because 80 line per character width is apparently
-// a magic number, everyone thinks is cool
-
-// Build, the state machine from config.
-//
-//	each project gets its own state
-//	machine, id-ed by ID
-
-func BuildMachine(
+func Provison(
 	ctx context.Context,
+	uid string,
 	reader StateFileReader,
-	id string,
-	configFilePath string,
+	filePath string,
 ) (
 	*StateMachine,
 	error,
 ) {
-	sm := &StateMachine{
-		ID:     id,
-		Reader: reader,
-	}
-
-	config, err := sm.
-		Reader.
-		Read(ctx, configFilePath)
+	config, err := reader.Read(ctx, filePath)
 	if err != nil {
-		logrus.
-			WithContext(ctx).
-			WithError(err).
-			Error("failed to read confif file")
+		return nil, err
 	}
 
-	logrus.
-		WithContext(ctx).
-		Debugf("state machine loaded %v\n", config)
+	conflicts := ConflictsMap{}
+	hasConflicts := false
 
-	machineDefn := config.Definition
+	defns := config.Definition.States
+	store := StateEventMap{}
 
-	if machineDefn.Name != sm.ID {
-		logrus.
-			WithContext(ctx).
-			Error("state machine id and config definition name mismatch")
+	for _, defn := range defns {
+		event := ds.NewMap[string, *StateDefinition]().Add(defn.Event, defn)
 
-		return nil, ErrMismatchMachineConfig
-	}
-
-	eventmaps := map[string]StateEventMap{}
-	inverseMap := map[string]string{}
-	stateMap := map[string]StateData{}
-
-	for _, state := range machineDefn.States {
-		data := StateData{
-			Key:         state.Name,
-			Alias:       state.Alias,
-			Event:       state.Event,
-			Transitions: ds.ToSet(state.Transitions...),
+		if !store.Has(defn.Name) {
+			store.Add(defn.Name, event)
+			continue
 		}
 
-		data.Terminal = data.Transitions.Get(0) == "-"
-
-		if _, ok := eventmaps[data.Key]; !ok {
-			eventmaps[data.Key] = ds.Map[string, StateData]{}
+		// if event exists in store
+		evmap := store.Get(defn.Name)
+		if evmap.Has(defn.Event) && handlesConflict(conflicts, defn) {
+			hasConflicts = true
 		}
-
-		eventmaps[data.Key].Add(state.Event, data)
-		stateMap[data.Key] = data
-
-		inverseMap[data.Alias] = data.Key
-
-		logrus.Printf("transitions %v+\n", data.Transitions)
 	}
 
-	sm.store.States = eventmaps
-	sm.store.inverseMap = inverseMap
-	sm.store.stateDataMap = stateMap
+	if hasConflicts {
+		return nil, NewErrFiniteStateViolation(conflicts)
+	}
 
-	return sm, nil
+	return &StateMachine{
+		ID:    uid,
+		store: store,
+	}, nil
 }
 
-func (sm *StateMachine) GetEventMap(
-	ctx context.Context,
-	stateAlias string,
-) (StateEventMap, error) {
-	stateID, ok := sm.store.inverseMap[stateAlias]
-	if !ok {
-		return nil, errors.New("unregistered_event")
+func handlesConflict(
+	conflicts ConflictsMap,
+	defn *StateDefinition,
+) bool {
+	if !conflicts.Has(defn.Name) {
+		conflicts.Add(defn.Name, []*StateDefinition{defn})
+		return true
 	}
 
-	evmap, ok := sm.store.States[stateID]
-	if !ok {
-		return nil, errors.New("state_not_registered")
-	}
-
-	return evmap, nil
+	conflicts.Add(defn.Name, append(conflicts.Get(defn.Name), defn))
+	return true
 }
 
-func (sm *StateMachine) GetStateData(
-	ctx context.Context,
-	stateAlias string,
-) (
-	*StateData,
-	error,
-) {
-	stateID, ok := sm.store.inverseMap[stateAlias]
-	if !ok {
-		return nil, errors.New("unregistered_event")
-	}
-
-	value, ok := sm.store.stateDataMap[stateID]
-	if !ok {
-		return nil, errors.New("state_not_registered")
-	}
-
-	return &value, nil
+type ErrFiniteStateViolation struct {
+	Err     error
+	Message string
 }
 
-func (sm *StateMachine) Transition(
-	ctx context.Context,
-	fromStateAlias string,
-	event string,
-) (
-	*StateData,
-	error,
-) {
-	nowStateID, ok := sm.store.inverseMap[fromStateAlias]
-	if !ok {
-		logrus.
-			WithContext(ctx).
-			Error("event alias ", fromStateAlias, "not found in state")
+func (e ErrFiniteStateViolation) Error() string {
+	return e.Message
+}
 
-		return nil, errors.New("unregistered_event_alias")
+func NewErrFiniteStateViolation(conflicts ConflictsMap) ErrFiniteStateViolation {
+	var err ErrFiniteStateViolation
+
+	b, merr := json.MarshalIndent(conflicts, "", " ")
+	if merr != nil {
+		err.Err = err
+		err.Message = merr.Error()
+		return err
 	}
 
-	return sm.store.NextState(nowStateID, event)
+	err.Message = fmt.Sprintf(`"conflicts": %s`, string(b))
+	return err
 }
