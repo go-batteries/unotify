@@ -1,4 +1,4 @@
-package stateman
+package exmachine
 
 import (
 	"context"
@@ -62,7 +62,7 @@ func Test_ProvisionMachine(t *testing.T) {
 				},
 			}
 
-			sm, err := Provison(
+			sm, err := Provision(
 				ctx,
 				"devops",
 				MockFileReader{invalidConfig},
@@ -91,7 +91,7 @@ func Test_ProvisionMachine(t *testing.T) {
 				},
 			}
 
-			sm, err := Provison(
+			sm, err := Provision(
 				ctx,
 				"ux",
 				MockFileReader{invalidConfig},
@@ -140,7 +140,7 @@ func Test_ProvisionMachine(t *testing.T) {
 				AliasMap:   AliasMapper{Aliases: aliasMap},
 				Definition: invalidMachine,
 			}
-			sm, err := Provison(
+			sm, err := Provision(
 				ctx,
 				"invalid",
 				MockFileReader{inValidConfig},
@@ -150,6 +150,10 @@ func Test_ProvisionMachine(t *testing.T) {
 			require.Error(t, err, "should have provisioned")
 			assert.Nil(t, sm)
 		})
+
+	t.Run("fails if transition event is not valid", func(t *testing.T) {
+		t.Skip()
+	})
 
 	t.Run(
 		"succeeds for many to one state transitions",
@@ -188,7 +192,7 @@ func Test_ProvisionMachine(t *testing.T) {
 				AliasMap:   AliasMapper{Aliases: aliasMap},
 				Definition: invalidTransition,
 			}
-			sm, err := Provison(
+			sm, err := Provision(
 				ctx,
 				"valid",
 				MockFileReader{inValidConfig},
@@ -214,7 +218,7 @@ func Test_ProvisionMachine(t *testing.T) {
 					{
 						Name:       "processing",
 						Event:      "next",
-						Transition: "Done",
+						Transition: "done",
 						Alias:      "Processing",
 					},
 					{
@@ -230,7 +234,7 @@ func Test_ProvisionMachine(t *testing.T) {
 				AliasMap:   AliasMapper{Aliases: aliasMap},
 				Definition: validTranistion,
 			}
-			sm, err := Provison(
+			sm, err := Provision(
 				ctx,
 				"valid",
 				MockFileReader{validConfig},
@@ -241,4 +245,102 @@ func Test_ProvisionMachine(t *testing.T) {
 			assert.NotNil(t, sm)
 		},
 	)
+}
+
+func Test_StateTransition(t *testing.T) {
+	ctx := context.Background()
+
+	validTranistion := MachineDefinition{
+		Name: "valid",
+		States: []*StateDefinition{
+			{
+				Name:       "to_do",
+				Event:      "next",
+				Transition: "processing",
+				Alias:      "To Do",
+			},
+			{
+				Name:       "processing",
+				Event:      "next",
+				Transition: "done",
+				Alias:      "Processing",
+			},
+			{
+				Name:       "processing",
+				Event:      "prev",
+				Transition: "to_do",
+				Alias:      "Processing",
+			},
+			// {
+			// 	Name:       "to_do",
+			// 	Event:      "prev",
+			// 	Transition: "heaven",
+			// 	Alias:      "To Do",
+			// },
+			{
+				Name:       "done",
+				Event:      "next",
+				Transition: "<end>",
+				Alias:      "Done",
+			},
+		},
+	}
+
+	validConfig := &MachineConfig{
+		AliasMap:   AliasMapper{Aliases: aliasMap},
+		Definition: validTranistion,
+	}
+	sm, err := Provision(
+		ctx,
+		"valid",
+		MockFileReader{validConfig},
+		"noopPath",
+	)
+
+	require.NoError(t, err, "should have provisioned")
+
+	t.Run("fails to transition for invalid event", func(t *testing.T) {
+		currState := "to_do"
+
+		_, _, err := sm.NextState(ctx, currState, "random", WithAlias)
+		require.Error(t, err, "should have failed to get next state")
+
+		assert.IsType(t, ErrEventNotRegistered, err)
+	})
+
+	t.Run("returns error if state transitions to invalid state", func(t *testing.T) {
+		_, _, err := sm.NextState(ctx, "Do Do", "prev", WithInvertedAlias)
+		require.Error(t, err, "should have failed if state transitioned to unregistered state")
+
+		assert.IsType(t, ErrEventNotRegistered, err)
+	})
+
+	t.Run("signals end of transition if returned state is terminal", func(t *testing.T) {
+		_, ok, err := sm.NextState(ctx, "Done", "next", WithInvertedAlias)
+		require.NoError(t, err, "should not have failed to get end state")
+
+		assert.True(t, ok, "should signal end of transition")
+	})
+
+	t.Run("returns the prev state object for current state", func(t *testing.T) {
+		state, ok, err := sm.
+			NextState(ctx, "Processing", "prev", WithInvertedAlias)
+
+		require.NoError(t, err, "should not have failed to fetch next state")
+
+		assert.False(t, ok, "should not have receieved end state")
+		assert.Equal(t, state.ID, "to_do")
+		assert.Equal(t, state.Alias, "To Do")
+	})
+
+	t.Run("returns the next state object for current state", func(t *testing.T) {
+		state, ok, err := sm.
+			NextState(ctx, "Processing", "next", WithInvertedAlias)
+
+		require.NoError(t, err, "should not have failed to fetch next state")
+
+		assert.False(t, ok, "should not have receieved end state")
+		assert.Equal(t, state.ID, "done")
+		assert.Equal(t, state.Alias, "Done")
+	})
 }

@@ -97,13 +97,7 @@ func (m Map[E, V]) Has(key E) bool {
 	return ok
 }
 
-func (m Map[E, V]) Get(key E) V {
-	var defaultValue V
-
+func (m Map[E, V]) Get(key E) (V, bool) {
 	value, ok := m[key]
-	if !ok {
-		return defaultValue
-	}
-
-	return value
+	return value, ok
 }
