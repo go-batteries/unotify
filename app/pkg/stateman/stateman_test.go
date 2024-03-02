@@ -34,13 +34,11 @@ type MockFileReader struct {
 	config *MachineConfig
 }
 
-func (m MockFileReader) Read(
-	ctx context.Context,
-	filePath string,
-) (
+func (m MockFileReader) Read(ctx context.Context, filePath string) (
 	*MachineConfig,
 	error,
 ) {
+	(&HCLFileReader{}).SetConfigDefaults(m.config)
 	return m.config, nil
 }
 
@@ -55,11 +53,61 @@ func Test_ProvisionMachine(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run(
-		"state config fails if not deterministic",
+		"fails if state machine id mismatch",
 		func(t *testing.T) {
-			invalidTransition := MachineDefinition{
-				Name:     "valid",
-				StateIDs: []string{"to_do", "processing", "done"},
+			invalidConfig := &MachineConfig{
+				AliasMap: AliasMapper{Aliases: aliasMap},
+				Definition: MachineDefinition{
+					Name: "ux",
+				},
+			}
+
+			sm, err := Provison(
+				ctx,
+				"devops",
+				MockFileReader{invalidConfig},
+				"noopPath",
+			)
+
+			require.Error(t, err)
+			require.Nil(t, sm)
+		},
+	)
+
+	t.Run(
+		"fails if state machine states are not aliased",
+		func(t *testing.T) {
+			invalidConfig := &MachineConfig{
+				AliasMap: AliasMapper{Aliases: aliasMap},
+				Definition: MachineDefinition{
+					Name: "ux",
+					States: []*StateDefinition{
+						{
+							Name:       "random",
+							Event:      "random",
+							Transition: "<end>",
+						},
+					},
+				},
+			}
+
+			sm, err := Provison(
+				ctx,
+				"ux",
+				MockFileReader{invalidConfig},
+				"noopPath",
+			)
+
+			require.Error(t, err)
+			require.Nil(t, sm)
+		},
+	)
+
+	t.Run(
+		"fails in case of one to multiple state transition",
+		func(t *testing.T) {
+			invalidMachine := MachineDefinition{
+				Name: "invalid",
 				States: []*StateDefinition{
 					{
 						Name:       "to_do",
@@ -90,11 +138,11 @@ func Test_ProvisionMachine(t *testing.T) {
 
 			inValidConfig := &MachineConfig{
 				AliasMap:   AliasMapper{Aliases: aliasMap},
-				Definition: invalidTransition,
+				Definition: invalidMachine,
 			}
 			sm, err := Provison(
 				ctx,
-				"valid",
+				"invalid",
 				MockFileReader{inValidConfig},
 				"noopPath",
 			)
@@ -104,11 +152,58 @@ func Test_ProvisionMachine(t *testing.T) {
 		})
 
 	t.Run(
-		"success on valid state config",
+		"succeeds for many to one state transitions",
+		func(t *testing.T) {
+			invalidTransition := MachineDefinition{
+				Name: "valid",
+				States: []*StateDefinition{
+					{
+						Name:       "to_do",
+						Event:      "next",
+						Transition: "done",
+						Alias:      "To Do",
+					},
+					{
+						Name:       "to_do",
+						Event:      "skiplast",
+						Transition: "done",
+						Alias:      "To Do",
+					},
+					{
+						Name:       "processing",
+						Event:      "next",
+						Transition: "Done",
+						Alias:      "Processing",
+					},
+					{
+						Name:       "done",
+						Event:      "next",
+						Transition: "<end>",
+						Alias:      "Done",
+					},
+				},
+			}
+
+			inValidConfig := &MachineConfig{
+				AliasMap:   AliasMapper{Aliases: aliasMap},
+				Definition: invalidTransition,
+			}
+			sm, err := Provison(
+				ctx,
+				"valid",
+				MockFileReader{inValidConfig},
+				"noopPath",
+			)
+
+			require.NoError(t, err, "should have provisioned")
+			assert.NotNil(t, sm)
+		})
+
+	t.Run(
+		"success on one to one state transition",
 		func(t *testing.T) {
 			validTranistion := MachineDefinition{
-				Name:     "valid",
-				StateIDs: []string{"to_do", "processing", "done"},
+				Name: "valid",
 				States: []*StateDefinition{
 					{
 						Name:       "to_do",

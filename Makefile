@@ -19,6 +19,9 @@ gen.web.proto:
 		./protos/web/**/*.proto \
 	)
 
+go.test:
+	go test -timeout=20s ./...
+
 serve.docs: gen.web.proto
 	( bash ./build.docs.sh )
 

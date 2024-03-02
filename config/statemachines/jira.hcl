@@ -7,7 +7,6 @@ aliasmapper "soc" {
 }
 
 statemachine "soc" {
-  states = ["to_do", "in_progress", "done"]
   initial = "to_do"
 
   state "to_do" "next" {

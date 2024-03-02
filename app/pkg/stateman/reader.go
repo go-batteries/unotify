@@ -22,16 +22,20 @@ type StateDefinition struct {
 
 type MachineDefinition struct {
 	Name       string             `hcl:"name,label"`
-	StateIDs   []string           `hcl:"states"`
 	States     []*StateDefinition `hcl:"state,block"`
 	EntryPoint string             `hcl:"initial"`
 
-	StateIDSet ds.Set[string]
+	StateIDs ds.Set[string]
 }
 
 type AliasMapper struct {
 	Name    string            `hcl:"name,label"`
 	Aliases map[string]string `hcl:"aliases"`
+}
+
+func (a AliasMapper) Has(key string) bool {
+	_, ok := a.Aliases[key]
+	return ok
 }
 
 type MachineConfig struct {
@@ -57,15 +61,21 @@ func (h HCLFileReader) Read(
 		return nil, err
 	}
 
+	h.SetConfigDefaults(config)
+
+	return config, nil
+}
+
+func (h HCLFileReader) SetConfigDefaults(config *MachineConfig) {
+	stateIDs := ds.NewSet[string]()
 	for _, state := range config.Definition.States {
 		if state == nil {
 			continue
 		}
 
 		state.Alias = config.AliasMap.Aliases[state.Name]
+		stateIDs.Add(state.Name)
 	}
 
-	config.Definition.StateIDSet = *ds.ToSet[string](config.Definition.StateIDs...)
-
-	return config, nil
+	config.Definition.StateIDs = *stateIDs
 }

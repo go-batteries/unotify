@@ -3,6 +3,7 @@ package stateman
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"unotify/app/pkg/ds"
 )
@@ -20,6 +21,11 @@ type StateMachine struct {
 	store  StateEventMap
 }
 
+var (
+	ErrInvalidStateIDMapping = errors.New("state_machine_id_mismatch")
+	ErrUndeclaredStateID     = errors.New("state_id_alias_mapping_not_found")
+)
+
 func Provison(
 	ctx context.Context,
 	uid string,
@@ -34,10 +40,24 @@ func Provison(
 		return nil, err
 	}
 
+	machine := config.Definition
+
+	if machine.Name != uid {
+		return nil, ErrInvalidStateIDMapping
+	}
+
+	iter := machine.StateIDs.Iter()
+
+	for val, more := iter.Next(); more; val, more = iter.Next() {
+		if !config.AliasMap.Has(val) {
+			return nil, ErrUndeclaredStateID
+		}
+	}
+
 	conflicts := ConflictsMap{}
 	hasConflicts := false
 
-	defns := config.Definition.States
+	defns := machine.States
 	store := StateEventMap{}
 
 	for _, defn := range defns {
