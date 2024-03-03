@@ -3,6 +3,7 @@ package hookers
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -199,6 +200,7 @@ func (svc *HookerService) Register(
 
 	return &RegisterHookerResponse{
 		Secret: hook.Secrets,
+		URI:    fmt.Sprintf("/webhooks/%s/%s/payload", req.Provider, req.RepoID),
 	}, nil
 }
 

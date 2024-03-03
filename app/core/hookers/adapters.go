@@ -9,6 +9,7 @@ type RegisterHookRequest struct {
 
 type RegisterHookerResponse struct {
 	Secret string `json:"secret,omitempty"`
+	URI    string `json:"uri"`
 }
 
 type SearchHookerResponse struct {

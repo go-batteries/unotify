@@ -3,7 +3,8 @@ vendor/
 tmp/
 log/
 out/
-
+*.env
+!config/app.env
 *.terraform
 *.tfstates
 *.tfplan

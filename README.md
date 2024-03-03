@@ -19,12 +19,7 @@
 
 **Worker**
 
-Will have to be deployed with one of:
-
-- docker-compose
-- kubernetes
-- pm2/pm2-runtime
-
+Worker deployed with `bash` script. Has to be moved to `kubernetes`.
 
 
 ### Deployment:
@@ -36,6 +31,47 @@ AWS_ACCOUNT="" ./infraa/build/ecs.sh
 ```shell
 cd infraa/deploy && AWS_ACCOUNT="" make run
 ```
+
+
+### Integration
+
+**Register Your hook**:
+
+```shell
+POST /conduit/webhooks/register HTTP/1.1
+Content-Type: application/json
+User-Agent: insomnia/8.6.1
+Host: localhost:9091
+Content-Length: 150
+
+{
+	"provider": "github",
+	"repo_path": "go-batteries/webhook-test-repo",
+	"repo_id": "webhook-test-repo"
+}
+```
+
+This returns, a `secret` and `uri`. The secret can't be retrieved back. And can
+only be regerated.
+
+
+
+```json
+{
+	"success": true,
+	"data": {
+		"secret": "s-secret",
+		"uri": "/webhooks/:provider/:repo_id/payload"
+	}
+}
+```
+
+**Github Integration**
+
+- Copy the `secret`
+- construct the url as `https://${your_domain}/${.response.data.uri}`
+- Go to Webhook settings in github, and the the values.
+
 
 
 ### Whatisthis

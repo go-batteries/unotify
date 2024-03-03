@@ -10,6 +10,7 @@ import (
 	"unotify/app/core/events"
 	"unotify/app/core/hookers"
 	"unotify/app/deps"
+	"unotify/app/pkg/ds"
 	"unotify/app/web/apiutils"
 
 	"github.com/labstack/echo/v4"
@@ -51,6 +52,9 @@ func GithubWebhookLoggingHandler(c echo.Context) error {
 	)
 }
 
+// TODO: Make configurable
+var AllowedProviders = ds.ToSet("github")
+
 func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 	// we dont need to send no error messages to github webhook servers.
 	return func(c echo.Context) error {
@@ -61,6 +65,18 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 		if err != nil {
 			logrus.WithError(err).Error("failed to get project in params")
 			return c.JSON(http.StatusBadRequest, `{}`)
+		}
+
+		var provider string
+		err = echo.PathParamsBinder(c).String("provider", &provider).BindError()
+		if err != nil {
+			logrus.WithError(err).Error("failed to get project in params")
+			return c.JSON(http.StatusBadRequest, `{}`)
+		}
+
+		if !AllowedProviders.Has(provider) {
+			logrus.Error("unregistered provider", provider)
+			return c.JSON(http.StatusForbidden, `{}`)
 		}
 
 		r := c.Request().Body
@@ -76,9 +92,10 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 			return c.JSON(http.StatusInternalServerError, `{}`)
 		}
 
+		provider = hookers.GithubProvider
 		svc := dep.HookRegistrationSvc
 		hook, err := svc.FindByRepoProvider(ctx, &hookers.FindHookByProvider{
-			Provider: hookers.GithubProvider,
+			Provider: provider,
 			RepoID:   repo,
 		})
 		if err != nil {
