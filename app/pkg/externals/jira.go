@@ -300,7 +300,6 @@ func (api *JiraAPIClient) GetIssueStatus(
 	}
 
 	logrus.WithContext(ctx).Debugln("issues data data", *data)
-	debugtools.Logdeep(data, " issues ")
 
 	return &data.Fields.Status, nil
 }
@@ -310,7 +309,7 @@ func (api *JiraAPIClient) ResolveIssue(
 	issueID string,
 	targetTransitionID string,
 ) error {
-	destinationURL := fmt.Sprintf(IssuesURL, api.DomainURI, issueID)
+	destinationURL := fmt.Sprintf(TransitionsURL, api.DomainURI, issueID)
 
 	transitionRequest := fmt.Sprintf(`{"transition": { "id": "%s" }}`, targetTransitionID)
 	reader := strings.NewReader(transitionRequest)
@@ -324,6 +323,8 @@ func (api *JiraAPIClient) ResolveIssue(
 	req.Header.Add("Authorization", "Basic "+api.computedBasicToken)
 	req.Header.Add("Content-Type", JSONContentType)
 
+	debugtools.HttpRequestLog(req)
+
 	res, err := api.client.Do(req)
 	if err != nil {
 		logrus.WithContext(ctx).WithError(err).Error("failed to get response from jira")
@@ -333,6 +334,8 @@ func (api *JiraAPIClient) ResolveIssue(
 	if res.StatusCode >= http.StatusBadRequest {
 		return errors.New("fuck_your_request")
 	}
+
+	logrus.WithContext(ctx).Infoln("transition success")
 
 	return nil
 }

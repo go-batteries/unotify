@@ -3,8 +3,10 @@ package exmachine
 import (
 	"context"
 	"errors"
-	"unotify/app/pkg/debugtools"
+	"strings"
 	"unotify/app/pkg/ds"
+
+	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -12,6 +14,24 @@ type (
 	StateEventMap = ds.Map[string, EventMap]
 	ConflictsMap  = ds.Map[string, []*StateDefinition]
 )
+
+type StateReactorEngine struct {
+	MachineMap map[string]*StateMachine
+}
+
+func BuildStateMachine(machines ...*StateMachine) StateReactorEngine {
+	sre := StateReactorEngine{MachineMap: make(map[string]*StateMachine)}
+
+	for _, machine := range machines {
+		if machine == nil {
+			continue
+		}
+
+		sre.MachineMap[machine.ID] = machine
+	}
+
+	return sre
+}
 
 type StateMachine struct {
 	ID string
@@ -61,7 +81,7 @@ func (sm *StateMachine) NextState(
 		return nil, false, ErrStateNotFound
 	}
 
-	debugtools.Logdeep(evmap, " finding nemo", event)
+	// debugtools.Logdeep(evmap, " finding nemo", event)
 
 	transient, ok := evmap.Get(event)
 	if !ok {
@@ -98,9 +118,17 @@ func Provision(
 	*StateMachine,
 	error,
 ) {
-	config, err := reader.Read(ctx, filePath)
+	hype, err := reader.Read(ctx, filePath)
 	if err != nil {
 		return nil, err
+	}
+
+	uid = strings.ToLower(uid)
+
+	config, ok := hype.Get(uid)
+	if !ok {
+		logrus.WithContext(ctx).Error("failed to find state machine by id", uid)
+		return nil, ErrInvalidStateIDMapping
 	}
 
 	machine := config.Definition

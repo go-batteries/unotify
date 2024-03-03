@@ -3,10 +3,11 @@ package processors
 import (
 	"context"
 	"errors"
+	"strings"
 	"unotify/app/pkg/config"
-	"unotify/app/pkg/debugtools"
 	"unotify/app/pkg/exmachine"
 	"unotify/app/pkg/externals"
+	"unotify/app/pkg/helpers"
 	"unotify/app/pkg/workerpool"
 
 	"github.com/sirupsen/logrus"
@@ -22,7 +23,7 @@ import (
 
 type JiraProcessor struct {
 	client       *externals.JiraAPIClient
-	statemachine exmachine.StateMachine
+	statereactor exmachine.StateReactorEngine
 	EventChannel chan string
 }
 
@@ -30,7 +31,11 @@ const (
 	DefaultJiraEventChanSize = 1000
 )
 
-func NewJiraProcessor(cfg *config.AppConfig, eventChanSize int) (*JiraProcessor, error) {
+func NewJiraProcessor(
+	cfg *config.AppConfig,
+	eventChanSize int,
+	statereactor exmachine.StateReactorEngine,
+) (*JiraProcessor, error) {
 	logrus.Infoln("atlassian domain ", cfg.AtlassianURL)
 
 	jclient, err := externals.NewJiraAPI(
@@ -51,6 +56,7 @@ func NewJiraProcessor(cfg *config.AppConfig, eventChanSize int) (*JiraProcessor,
 	return &JiraProcessor{
 		client:       jclient,
 		EventChannel: make(chan string, eventChanSize),
+		statereactor: statereactor,
 	}, nil
 }
 
@@ -66,6 +72,9 @@ func (jp *JiraProcessor) ProcessEach(ctx context.Context, issueID string) worker
 
 		return workerpool.Result{Err: err}
 	}
+
+	logrus.Println("dlksfdslkfjdslkfjdsklfjsdlfk")
+
 	status, err := jp.client.GetIssueStatus(ctx, issueID)
 	if err != nil {
 		logrus.
@@ -76,7 +85,7 @@ func (jp *JiraProcessor) ProcessEach(ctx context.Context, issueID string) worker
 		return workerpool.Result{Err: err}
 	}
 
-	debugtools.Logdeep(transitionData.Transitions)
+	// debugtools.Logdeep(transitionData.Transitions)
 
 	transitionMap := map[string]string{} // this string{} is int{}, but lord jira, decided "int"
 
@@ -84,9 +93,18 @@ func (jp *JiraProcessor) ProcessEach(ctx context.Context, issueID string) worker
 		transitionMap[transition.Name] = transition.ID
 	}
 
-	logrus.WithContext(ctx).Infoln("status ", status, "state", status.State)
+	projectID := strings.ToLower(helpers.ToProjectID(issueID))
 
-	newState, final, err := jp.statemachine.NextState(
+	logrus.WithContext(ctx).Infoln("status ", status, "state", status.State, "proj", projectID)
+	// logrus.Infoln(jp.statereactor.MachineMap)
+
+	statemachine, ok := jp.statereactor.MachineMap[projectID]
+	if !ok {
+		logrus.WithContext(ctx).Error("couldn't find state machine for ", projectID, issueID)
+		return workerpool.Result{Err: err}
+	}
+
+	newState, final, err := statemachine.NextState(
 		ctx,
 		status.State,
 		"next",
@@ -99,19 +117,24 @@ func (jp *JiraProcessor) ProcessEach(ctx context.Context, issueID string) worker
 
 		return workerpool.Result{Err: err}
 	}
+	logrus.Println("m,xznjshmfekwfodsijf", final)
 
+	if final {
+		logrus.WithContext(ctx).Infoln(issueID, " already in terminal state:", status)
+		return workerpool.Result{Err: nil, Data: newState}
+	}
+
+	logrus.WithContext(ctx).Infoln("next state", newState.Alias)
 	targetTransitionID, ok := transitionMap[newState.Alias]
 	if !ok {
 		err = errors.New("transition_state_not_defined")
 		return workerpool.Result{Err: err}
 	}
 
-	logrus.WithContext(ctx).Infoln("next state", newState.Alias)
-	if final {
-		logrus.WithContext(ctx).Infoln(issueID, " already in terminal state:", status)
-		return workerpool.Result{Err: nil, Data: newState}
+	err = jp.client.ResolveIssue(ctx, issueID, targetTransitionID)
+	if err != nil {
+		logrus.WithContext(ctx).WithError(err).Error("failed to resolve issue")
 	}
 
-	err = jp.client.ResolveIssue(ctx, issueID, targetTransitionID)
-	return workerpool.Result{Err: err}
+	return workerpool.Result{Err: err, Data: newState}
 }

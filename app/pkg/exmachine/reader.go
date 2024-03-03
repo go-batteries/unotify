@@ -11,7 +11,7 @@ import (
 const EndTransitionMarker = "<end>"
 
 type StateFileReader interface {
-	Read(context.Context, string) (*MachineConfig, error)
+	Read(context.Context, string) (*StateProvisoner, error)
 }
 
 type StateDefinition struct {
@@ -37,6 +37,24 @@ type AliasMapper struct {
 	inverseAliasMap map[string]string
 }
 
+// Collection of state machines
+type StateProvisoner struct {
+	Provisioners []*ProvisionerDefinition `hcl:"provisioner,block"`
+
+	provisonerMap map[string]*ProvisionerDefinition
+}
+
+func (h *StateProvisoner) Get(key string) (*ProvisionerDefinition, bool) {
+	machine, ok := h.provisonerMap[key]
+	return machine, ok
+}
+
+type ProvisionerDefinition struct {
+	Name       string            `hcl:"name,label"`
+	Definition MachineDefinition `hcl:"statemachine,block"`
+	AliasMap   AliasMapper       `hcl:"aliasmapper,block"`
+}
+
 func (a AliasMapper) Has(key string) bool {
 	_, ok := a.Aliases[key]
 	return ok
@@ -53,11 +71,6 @@ func (a AliasMapper) GetInverted(key string) (string, bool) {
 	return value, ok
 }
 
-type MachineConfig struct {
-	Definition MachineDefinition `hcl:"statemachine,block"`
-	AliasMap   AliasMapper       `hcl:"aliasmapper,block"`
-}
-
 var (
 	ErrHCLFileParseFailed          = errors.New("file_parse_failed")
 	ErrTranistionStateUnregistered = errors.New("transition_state_unregistered")
@@ -66,34 +79,44 @@ var (
 type HCLFileReader struct{}
 
 func (h HCLFileReader) Read(ctx context.Context, filePath string) (
-	*MachineConfig,
+	*StateProvisoner,
 	error,
 ) {
-	config := &MachineConfig{}
+	hype := &StateProvisoner{
+		provisonerMap: map[string]*ProvisionerDefinition{},
+	}
 
-	err := hclsimple.DecodeFile(filePath, nil, config)
+	err := hclsimple.DecodeFile(filePath, nil, hype)
 	if err != nil {
 		return nil, err
 	}
 
-	h.SetConfigDefaults(config)
+	// debugtools.Logdeep(hype)
 
-	definition := config.Definition
+	for _, config := range hype.Provisioners {
+		h.SetConfigDefaults(config)
 
-	for _, state := range definition.States {
-		if state.Transition == EndTransitionMarker {
-			continue
-		}
+		hype.provisonerMap[config.Name] = config
+		definition := config.Definition
 
-		if !definition.StateIDs.Has(state.Transition) {
-			return nil, ErrTranistionStateUnregistered
+		for _, state := range definition.States {
+			if state.Transition == EndTransitionMarker {
+				continue
+			}
+
+			if !definition.StateIDs.Has(state.Transition) {
+				return nil, ErrTranistionStateUnregistered
+			}
 		}
 	}
 
-	return config, nil
+	// debugtools.Logdeep(hype, "hype")
+	// debugtools.Logdeep(hype.provisonerMap, "provisonmap")
+
+	return hype, nil
 }
 
-func (h HCLFileReader) SetConfigDefaults(config *MachineConfig) {
+func (h HCLFileReader) SetConfigDefaults(config *ProvisionerDefinition) {
 	stateIDs := ds.NewSet[string]()
 	config.AliasMap.inverseAliasMap = map[string]string{}
 

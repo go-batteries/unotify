@@ -1,31 +1,55 @@
-aliasmapper "soc" {
-  aliases = {
-    to_do: "To Do",
-    in_progress: "In Progress",
-    done: "Done"
+provisioner "soc" {
+  aliasmapper "soc" {
+    aliases = {
+      to_do: "To Do",
+      in_progress: "In Progress",
+      done: "Done"
+    }
+  }
+
+  statemachine "soc" {
+    initial = "to_do"
+
+    state "to_do" "next" {
+      transition = "in_progress"
+    }
+
+    state "in_progress" "next" {
+      transition = "done"
+    } 
+
+    state "in_progress" "prev" {
+      transition = "to_do"
+    }
+
+    state "done" "next" {
+      transition = "<end>"
+    }
   }
 }
 
-statemachine "soc" {
-  initial = "to_do"
-
-  state "to_do" "next" {
-    transition = "in_progress"
+provisioner "devhop" {
+  aliasmapper "devhop" {
+    aliases = {
+      to_do: "To Do",
+      in_progress: "In Progress",
+      done: "Done"
+    }
   }
 
-  state "to_do" "up" {
-    transition = "done"
-  }
+  statemachine "devhop" {
+    initial = "to_do"
 
-  state "in_progress" "next" {
-    transition = "done"
-  } 
+    state "to_do" "next" {
+      transition = "in_progress"
+    }
 
-  state "in_progress" "prev" {
-    transition = "to_do"
-  }
+    state "in_progress" "next" {
+      transition = "done"
+    }
 
-  state "done" "next" {
-    transition = "<end>"
+    state "done" "next" {
+      transition = "<end>"
+    }
   }
 }

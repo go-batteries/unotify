@@ -76,7 +76,7 @@ func (er *EventsRepository) Create(ctx context.Context, key string, event *Githu
 		return err
 	}
 
-	logrus.Println("redis data ", string(b))
+	logrus.Debugln("redis data ", string(b))
 
 	err = er.rsqcl.EnqueueMsg(ctx, resque.Payload{Message: b, Key: key})
 	if err != nil {

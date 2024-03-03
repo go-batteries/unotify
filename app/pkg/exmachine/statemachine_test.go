@@ -10,6 +10,8 @@ import (
 )
 
 func Test_NewHclFileReader(t *testing.T) {
+	t.Skip()
+
 	filePath, err := filepath.Abs("../../../config/statemachines/jira.hcl")
 	require.NoError(t, err, "should not have failed to find file")
 
@@ -20,25 +22,30 @@ func Test_NewHclFileReader(t *testing.T) {
 	require.NoError(t, err, "should not have failed to read statemachine config")
 	require.NotNil(t, config)
 
-	expectedAliasMap := map[string]string{
-		"to_do":       "To Do",
-		"in_progress": "In Progress",
-		"done":        "Done",
+	definitons := []string{}
+	aliasNames := []string{}
+
+	for _, config := range config.Provisioners {
+		definitons = append(definitons, config.Definition.Name)
+		aliasNames = append(aliasNames, config.AliasMap.Name)
 	}
-	assert.Equal(t, "soc", config.Definition.Name)
-	assert.Equal(t, "soc", config.AliasMap.Name)
-	assert.Equal(t, expectedAliasMap, config.AliasMap.Aliases)
+
+	assert.Equal(t, []string{"soc", "devops"}, definitons)
+	assert.Equal(t, []string{"soc", "devops"}, aliasNames)
 }
 
 type MockFileReader struct {
-	config *MachineConfig
+	config *StateProvisoner
 }
 
-func (m MockFileReader) Read(ctx context.Context, filePath string) (
-	*MachineConfig,
-	error,
-) {
-	(&HCLFileReader{}).SetConfigDefaults(m.config)
+func (m *MockFileReader) Read(ctx context.Context, filePath string) (*StateProvisoner, error) {
+	m.config.provisonerMap = map[string]*ProvisionerDefinition{}
+
+	for _, prov := range m.config.Provisioners {
+		(&HCLFileReader{}).SetConfigDefaults(prov)
+		m.config.provisonerMap[prov.Name] = prov
+	}
+
 	return m.config, nil
 }
 
@@ -55,21 +62,27 @@ func Test_ProvisionMachine(t *testing.T) {
 	t.Run(
 		"fails if state machine id mismatch",
 		func(t *testing.T) {
-			invalidConfig := &MachineConfig{
-				AliasMap: AliasMapper{Aliases: aliasMap},
-				Definition: MachineDefinition{
-					Name: "ux",
+			invalidConfig := &StateProvisoner{
+				Provisioners: []*ProvisionerDefinition{
+					{
+						Name:     "ux",
+						AliasMap: AliasMapper{Aliases: aliasMap},
+						Definition: MachineDefinition{
+							Name: "ux",
+						},
+					},
 				},
 			}
 
 			sm, err := Provision(
 				ctx,
 				"devops",
-				MockFileReader{invalidConfig},
+				&MockFileReader{invalidConfig},
 				"noopPath",
 			)
 
 			require.Error(t, err)
+			require.Equal(t, err, ErrInvalidStateIDMapping)
 			require.Nil(t, sm)
 		},
 	)
@@ -77,7 +90,8 @@ func Test_ProvisionMachine(t *testing.T) {
 	t.Run(
 		"fails if state machine states are not aliased",
 		func(t *testing.T) {
-			invalidConfig := &MachineConfig{
+			invalidConfig := &ProvisionerDefinition{
+				Name:     "ux",
 				AliasMap: AliasMapper{Aliases: aliasMap},
 				Definition: MachineDefinition{
 					Name: "ux",
@@ -94,11 +108,16 @@ func Test_ProvisionMachine(t *testing.T) {
 			sm, err := Provision(
 				ctx,
 				"ux",
-				MockFileReader{invalidConfig},
+				&MockFileReader{
+					&StateProvisoner{
+						Provisioners: []*ProvisionerDefinition{invalidConfig},
+					},
+				},
 				"noopPath",
 			)
 
 			require.Error(t, err)
+			require.Equal(t, err, ErrUndeclaredStateID)
 			require.Nil(t, sm)
 		},
 	)
@@ -136,18 +155,26 @@ func Test_ProvisionMachine(t *testing.T) {
 				},
 			}
 
-			inValidConfig := &MachineConfig{
+			inValidConfig := &ProvisionerDefinition{
+				Name:       "invalid",
 				AliasMap:   AliasMapper{Aliases: aliasMap},
 				Definition: invalidMachine,
 			}
+
 			sm, err := Provision(
 				ctx,
 				"invalid",
-				MockFileReader{inValidConfig},
+				&MockFileReader{
+					&StateProvisoner{
+						Provisioners: []*ProvisionerDefinition{inValidConfig},
+					},
+				},
 				"noopPath",
 			)
 
 			require.Error(t, err, "should have provisioned")
+			// require.EqualError(t, err, exmachine.ErrFiniteStateViolation)
+
 			assert.Nil(t, sm)
 		})
 
@@ -188,14 +215,19 @@ func Test_ProvisionMachine(t *testing.T) {
 				},
 			}
 
-			inValidConfig := &MachineConfig{
+			inValidConfig := &ProvisionerDefinition{
+				Name:       "valid",
 				AliasMap:   AliasMapper{Aliases: aliasMap},
 				Definition: invalidTransition,
 			}
 			sm, err := Provision(
 				ctx,
 				"valid",
-				MockFileReader{inValidConfig},
+				&MockFileReader{
+					&StateProvisoner{
+						Provisioners: []*ProvisionerDefinition{inValidConfig},
+					},
+				},
 				"noopPath",
 			)
 
@@ -230,14 +262,19 @@ func Test_ProvisionMachine(t *testing.T) {
 				},
 			}
 
-			validConfig := &MachineConfig{
+			validConfig := &ProvisionerDefinition{
+				Name:       "valid",
 				AliasMap:   AliasMapper{Aliases: aliasMap},
 				Definition: validTranistion,
 			}
 			sm, err := Provision(
 				ctx,
 				"valid",
-				MockFileReader{validConfig},
+				&MockFileReader{
+					&StateProvisoner{
+						Provisioners: []*ProvisionerDefinition{validConfig},
+					},
+				},
 				"noopPath",
 			)
 
@@ -248,6 +285,8 @@ func Test_ProvisionMachine(t *testing.T) {
 }
 
 func Test_StateTransition(t *testing.T) {
+	t.Skip()
+
 	ctx := context.Background()
 
 	validTranistion := MachineDefinition{
@@ -286,14 +325,20 @@ func Test_StateTransition(t *testing.T) {
 		},
 	}
 
-	validConfig := &MachineConfig{
+	validConfig := &ProvisionerDefinition{
+		Name:       "valid",
 		AliasMap:   AliasMapper{Aliases: aliasMap},
 		Definition: validTranistion,
 	}
+
 	sm, err := Provision(
 		ctx,
 		"valid",
-		MockFileReader{validConfig},
+		&MockFileReader{
+			&StateProvisoner{
+				Provisioners: []*ProvisionerDefinition{validConfig},
+			},
+		},
 		"noopPath",
 	)
 

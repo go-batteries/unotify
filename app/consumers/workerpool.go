@@ -28,11 +28,10 @@ func (w Worker[E]) Start(ctx context.Context, pool *WorkerPool[E]) {
 			select {
 			// wait for the data to arrive
 			case payload := <-w.Bench:
-				logrus.Printf("payload received from github %+v\n", payload)
-				logrus.Println("sending to processor")
+				logrus.WithContext(ctx).Debugf("payload received from github %+v. sending to process\n", payload)
 				w.ProcessorChan <- payload
 			case <-w.Done:
-				logrus.Infoln("worker asked to stop")
+				logrus.WithContext(ctx).Infoln("worker asked to stop")
 				return
 			}
 		}
