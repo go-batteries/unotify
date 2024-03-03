@@ -17,9 +17,14 @@
 - aws account
 
 
-**Job Activity**
+**Worker**
 
-- atlassian api key [from here](https://id.atlassian.com/manage-profile/security/api-tokens), to state transition jira tickets.
+Will have to be deployed with one of:
+
+- docker-compose
+- kubernetes
+- pm2/pm2-runtime
+
 
 
 ### Deployment:

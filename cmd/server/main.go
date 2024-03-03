@@ -10,9 +10,9 @@ import (
 	"os/signal"
 	"strings"
 	"time"
-	"unotify/app/consumers"
 	"unotify/app/deps"
 	"unotify/app/pkg/config"
+
 	"unotify/app/web/webhook"
 
 	"github.com/labstack/echo/v4"
@@ -23,7 +23,7 @@ import (
 func main() {
 	env := os.Getenv("ENVIRONMENT")
 	if env == "" {
-		env = "dev"
+		env = "local"
 	}
 
 	var appPort string
@@ -32,7 +32,7 @@ func main() {
 
 	cfg := config.BuildAppConfig(env)
 
-	config.SetupLogger(cfg.LogLevel)
+	config.SetupLogger(cfg.Env, cfg.LogLevel)
 
 	dep := deps.BuildAppDeps(cfg)
 
@@ -73,6 +73,7 @@ func main() {
 	}
 
 	logrus.Infoln("starting port at ", appPort)
+
 	data, err := json.MarshalIndent(e.Routes(), "", "  ")
 	if err != nil {
 		logrus.WithError(err).Debugln("failed to get routes")
@@ -90,14 +91,8 @@ func main() {
 		}
 	}()
 
-	ghc := consumers.NewGithubEventConsumer(dep.GithubResqueue)
-	// Change this to get All providers::github::repo
-	go ghc.Start(ctx, "providers::github")
-	consumers.GithubDispatcher(ctx, ghc.EventChannel)
-
 	// Wait for interrupt signal to gracefully shutdown the server
 	<-ctx.Done()
-	ghc.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

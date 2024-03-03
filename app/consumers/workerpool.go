@@ -6,17 +6,20 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type WorkerPool struct {
-	Pool chan chan string
+type WorkerPool[E any] struct {
+	Pool chan chan E
 	// Pool chan chan resque.Payload
 }
 
-type Worker struct {
-	Bench chan string
-	Done  chan bool
+type WorkerProcessor func(context.Context, string) (any, error)
+
+type Worker[E any] struct {
+	Bench         chan E
+	Done          chan bool
+	ProcessorChan chan E
 }
 
-func (w Worker) Start(ctx context.Context, pool *WorkerPool) {
+func (w Worker[E]) Start(ctx context.Context, pool *WorkerPool[E]) {
 	go func() {
 		for {
 			// send the job channel
@@ -25,7 +28,9 @@ func (w Worker) Start(ctx context.Context, pool *WorkerPool) {
 			select {
 			// wait for the data to arrive
 			case payload := <-w.Bench:
-				logrus.Printf("payload from github %+v\n", payload)
+				logrus.Printf("payload received from github %+v\n", payload)
+				logrus.Println("sending to processor")
+				w.ProcessorChan <- payload
 			case <-w.Done:
 				logrus.Infoln("worker asked to stop")
 				return

@@ -8,6 +8,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+type GithubPayload struct{}
+
 type GithubEvents struct {
 	Action     string              `json:"action"`
 	Release    GithubEventsRelease `json:"release"`
@@ -24,7 +26,7 @@ type GithubRepository struct {
 	CommitsURL string `json:"commits_url"`
 }
 
-func ToGithubEvents(b []byte) (*GithubEvents, error) {
+func ScoopGithubEvents(b []byte) (*GithubEvents, error) {
 	ev := &GithubEvents{}
 
 	if err := json.Unmarshal(b, ev); err != nil {
@@ -32,6 +34,16 @@ func ToGithubEvents(b []byte) (*GithubEvents, error) {
 	}
 
 	return ev, nil
+}
+
+func ParseGithubEvenFromCache(b []byte) (*GithubEvents, error) {
+	ev := &EventMessage{}
+
+	if err := json.Unmarshal(b, ev); err != nil {
+		return nil, err
+	}
+
+	return ev.Event, nil
 }
 
 type EventsRepository struct {
@@ -63,6 +75,8 @@ func (er *EventsRepository) Create(ctx context.Context, key string, event *Githu
 		logrus.WithContext(ctx).WithError(err).Error("failed to marshal event msg")
 		return err
 	}
+
+	logrus.Println("redis data ", string(b))
 
 	err = er.rsqcl.EnqueueMsg(ctx, resque.Payload{Message: b, Key: key})
 	if err != nil {

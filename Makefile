@@ -2,6 +2,7 @@ pre.install:
 	go get google.golang.org/protobuf 
 	go get google.golang.org/genproto
 	go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
+	npm install pm2@latest -g
 
 
 gen.models.proto:
@@ -25,5 +26,15 @@ go.test:
 serve.docs: gen.web.proto
 	( bash ./build.docs.sh )
 
+
+build.server:
+	go build -o out/server cmd/server/main.go
+
+build.worker:
+	go build -o out/worker cmd/worker/main.go
+
+build: build.server build.worker
+
 run.server:
-	go run -race cmd/server/main.go
+	pm2 start ecosystem.config.js --attach
+

@@ -1,10 +1,12 @@
 package config
 
-import "github.com/sirupsen/logrus"
+import (
+	"github.com/sirupsen/logrus"
+)
 
 // For time being we will configure logger here
 
-func SetupLogger(logLevel string) {
+func SetupLogger(env string, logLevel string) {
 	LogLevelMap := map[string]logrus.Level{
 		"debug": logrus.DebugLevel,
 		"error": logrus.ErrorLevel,
@@ -17,5 +19,10 @@ func SetupLogger(logLevel string) {
 
 	logrus.SetLevel(LogLevelMap[logLevel])
 	logrus.SetFormatter(&logrus.JSONFormatter{})
+
+	if env == "local" {
+		logrus.SetFormatter(&logrus.TextFormatter{})
+	}
+
 	logrus.SetReportCaller(true)
 }

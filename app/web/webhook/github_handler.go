@@ -68,7 +68,11 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 
 		b, err := io.ReadAll(r)
 		if err != nil {
-			logrus.WithContext(ctx).WithError(err).Error("failed to marshal request body")
+			logrus.
+				WithContext(ctx).
+				WithError(err).
+				Error("failed to marshal request body")
+
 			return c.JSON(http.StatusInternalServerError, `{}`)
 		}
 
@@ -78,7 +82,11 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 			RepoID:   repo,
 		})
 		if err != nil {
-			logrus.WithContext(ctx).WithError(err).Error("failed to find registered webhook")
+			logrus.
+				WithContext(ctx).
+				WithError(err).
+				Error("failed to find registered webhook")
+
 			return c.JSON(http.StatusBadRequest, `{}`)
 		}
 
@@ -102,7 +110,7 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 			// return here
 		}
 
-		ev, err := events.ToGithubEvents(b)
+		ev, err := events.ScoopGithubEvents(b)
 		if err != nil {
 			logrus.WithContext(ctx).WithError(err).Error("failed to unmarshal github event.")
 			logrus.WithContext(ctx).Debugln(string(b))
@@ -113,7 +121,10 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 		// TODO: validate GithubEvents
 		// TODO: Debounce
 
-		err = dep.GithubEventsRepository.Create(ctx, hook.RepoID, ev)
+		// The initial idea was to Enqueue to a list, per project
+		// But rn, it just does per hook.Provider basic. You can
+		// Turn on that sharding, by uncommenting key creation in EnqueMsg
+		err = dep.GithubEventsRepository.Create(ctx, "events::github", ev)
 		if err != nil {
 			logrus.WithContext(ctx).WithError(err).Error("failed to push to queueue")
 			return c.JSON(http.StatusTeapot, `{}`)

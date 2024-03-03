@@ -2,6 +2,8 @@
 vendor/
 tmp/
 log/
+out/
+
 *.terraform
 *.tfstates
 *.tfplan
