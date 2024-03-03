@@ -20,12 +20,23 @@
       {
         "name": "ELASTIC_REDIS_URL",
         "value": "${REDIS_URL}"
+      },
+      {
+        "name": "ATLASSIAN_API_KEY",
+        "value": "${ATLASSIAN_API_KEY}"
+      },
+      {
+        "name": "ATLASSIAN_EMAIL",
+        "value": "${ATLASSIAN_EMAIL}"
       }
     ],
     "portMappings": [
       {
         "containerPort": ${APP_PORT},
         "hostPort": ${APP_PORT}
+      },{
+      "containerPort": ${WORKER_PORT},
+      "hostPort": ${WORKER_PORT}
       }
     ],
     "containerDefinitions": [

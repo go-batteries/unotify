@@ -12,7 +12,6 @@ import (
 	"time"
 	"unotify/app/deps"
 	"unotify/app/pkg/config"
-
 	"unotify/app/web/webhook"
 
 	"github.com/labstack/echo/v4"
@@ -86,6 +85,8 @@ func main() {
 
 	// Start server
 	go func() {
+		logrus.Println("server serving at port ", appPort)
+
 		if err := e.Start(appPort); err != nil && err != http.ErrServerClosed {
 			e.Logger.Fatal("shutting down the server")
 		}

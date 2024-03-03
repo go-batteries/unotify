@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 	"unotify/app/consumers"
 	"unotify/app/deps"
 	"unotify/app/pkg/config"
@@ -13,6 +15,8 @@ import (
 	"unotify/app/pkg/workerpool"
 	"unotify/app/processors"
 
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,7 +28,22 @@ func main() {
 
 	var hclConfigDir string
 	flag.StringVar(&hclConfigDir, "hcl-dir", "./config/statemachines", "directory for hcl config")
+
+	var appPort string
+	flag.StringVar(&appPort, "p", ":9093", "application port overrides env")
 	flag.Parse()
+
+	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
+	group := e.Group("/conduit-reactor")
+
+	// group.POST("/webhook/payload", webhook.GithubWebhookLoggingHandler)
+
+	group.GET("/ping", func(c echo.Context) error {
+		return c.String(http.StatusOK, "pong")
+	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -57,23 +76,6 @@ func main() {
 		states = append(states, statemach)
 	}
 
-	// soc, err := exmachine.Provision(
-	// 	ctx,
-	// 	"soc",
-	// 	reader,
-	// 	filePath,
-	// )
-
-	// devops, err := exmachine.Provision(
-	// 	ctx,
-	// 	"devhops",
-	// 	reader,
-	// 	filePath,
-	// )
-	// if err != nil {
-	// 	logrus.WithError(err).Fatal("failed to provision devops statemachine", filePath)
-	// }
-
 	reactor := exmachine.BuildStateMachine(states...)
 
 	jp, err := processors.NewJiraProcessor(cfg, processors.DefaultJiraEventChanSize, reactor)
@@ -88,7 +90,23 @@ func main() {
 	go ghc.Start(ctx, "providers::github")
 
 	consumers.GithubDispatcher(ctx, ghc.EventChannel, jp.EventChannel)
+
+	go func() {
+		logrus.Println("worker serving at port ", appPort)
+
+		if err := e.Start(appPort); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal("shutting down the server")
+		}
+	}()
+
 	<-ctx.Done()
 
 	logrus.Infoln("worker stopped")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
 }

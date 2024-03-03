@@ -22,6 +22,11 @@ variable APP_PORT {
   default = 9091
 }
 
+variable WORKER_PORT {
+  type = number
+  default = 9093
+}
+
 variable ECS_KEY_NAME {
   type = string
   default="dash-tf-key-pair"
@@ -48,3 +53,11 @@ variable APP_VERSION {
   default = "38a51e4c"
 }
 
+
+variable ATLASSIAN_API_KEY {
+  type = string
+}
+
+variable ATLASSIAN_EMAIL {
+  type = string
+}

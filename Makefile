@@ -1,3 +1,5 @@
+VERSION ?= latest
+
 pre.install:	
 	go get google.golang.org/protobuf 
 	go get google.golang.org/genproto
@@ -38,3 +40,6 @@ build: build.server build.worker
 run.server:
 	pm2 start ecosystem.config.js --attach
 
+debug.container:
+	docker cp $(VERSION):/var/log/worker.log tmp/worker.log
+	docker cp $(VERSION):/var/log/server.log tmp/server.log

@@ -63,7 +63,7 @@ resource "aws_security_group" "app_sg" {
 
   ## ssh: port 22
   ## tcp: port 80(http), 443(https)
-  ## app: port 9090
+  ## app: port 9091, 9093
   ingress {
     from_port = 22
     to_port = 22
@@ -95,6 +95,13 @@ resource "aws_security_group" "app_sg" {
   ingress {
     from_port = var.APP_PORT
     to_port = var.APP_PORT
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port = var.WORKER_PORT
+    to_port = var.WORKER_PORT
     protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -189,6 +196,23 @@ resource "aws_lb_target_group" "app_lb_tg" {
   }
 }
 
+resource "aws_lb_target_group" "worker_lb_tg" {
+    name = "${var.APP_NAME}-Tg"
+    port = var.APP_PORT
+    protocol = "HTTP"
+    vpc_id = aws_vpc.dashdotdash_vpc.id
+
+    health_check {    
+      healthy_threshold   = 3    
+      unhealthy_threshold = 10    
+      timeout             = 10
+      interval            = 30    
+      path                = "/conduit-reactor/ping"    
+      port                = "${var.WORKER_PORT}"
+      matcher             = "200-299" 
+  }
+}
+
 # setup the LB to listeners to forward requests
 
 resource "aws_lb_listener" "http_lb_listener" {
@@ -218,7 +242,7 @@ resource "aws_lb_listener_rule" "app_server_http_rule" {
 
   condition {
     path_pattern {
-      values = ["/arij/*"]
+      values = ["/conduit/*"]
     }
   }
 }
@@ -334,7 +358,10 @@ resource "aws_ecs_task_definition" "server_task_definition" {
       APP_NAME: var.APP_NAME,
       APP_VERSION: var.APP_VERSION,
       APP_PORT: var.APP_PORT,
-      REDIS_URL: local.redis_url
+      WORKER_PORT: var.WORKER_PORT,
+      REDIS_URL: local.redis_url,
+      ATLASSIAN_API_KEY: var.ATLASSIAN_API_KEY,
+      ATLASSIAN_EMAIL:  var.ATLASSIAN_EMAIL,
     })
 }
 
