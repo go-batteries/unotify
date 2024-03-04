@@ -197,7 +197,7 @@ resource "aws_lb_target_group" "app_lb_tg" {
 }
 
 resource "aws_lb_target_group" "worker_lb_tg" {
-    name = "${var.APP_NAME}-Tg"
+    name = "${var.APP_NAME}-Worker-Tg"
     port = var.APP_PORT
     protocol = "HTTP"
     vpc_id = aws_vpc.dashdotdash_vpc.id
@@ -246,6 +246,24 @@ resource "aws_lb_listener_rule" "app_server_http_rule" {
     }
   }
 }
+
+resource "aws_lb_listener_rule" "worker_server_http_rule" {
+  listener_arn = aws_lb_listener.http_lb_listener.arn
+  priority = 101
+
+  action {
+      type = "forward"
+      target_group_arn = aws_lb_target_group.worker_lb_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/conduit-reactor/*"]
+    }
+  }
+}
+
+
 
 
 ## ========================== ECS Cluster ========================== ##
@@ -317,7 +335,8 @@ resource "aws_autoscaling_group" "app_server_ecs_asg" {
 locals {
   ecs_sh_content = templatefile("${path.module}/templates/ecs/ecs.sh", {
     ECS_CLUSTER_NAME = var.ECS_CLUSTER_NAME,
-    REDIS_URL = local.redis_url
+    REDIS_URL = local.redis_url,
+    APP_VERSION = var.APP_VERSION
   })
 }
 

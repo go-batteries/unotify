@@ -56,6 +56,7 @@ func main() {
 	// remove this from load balancer
 	// to put it back, do group.PATCH
 	e.PATCH("/webhooks/update", webhook.RegisterWebHook(dep.HookRegistrationSvc, true))
+	e.PATCH("/internal/webhooks/impport", webhook.ImportWebHook(dep.HookRegistrationSvc))
 
 	group.POST("/webhooks/register", webhook.RegisterWebHook(dep.HookRegistrationSvc, false))
 	group.GET("/webhooks/list", webhook.ListRegisteredHooksForProvider(dep.HookRegistrationSvc))

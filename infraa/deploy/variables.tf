@@ -50,7 +50,7 @@ variable APP_NAME {
 
 variable APP_VERSION {
   type = string
-  default = "38a51e4c"
+  default = "latest"
 }
 
 

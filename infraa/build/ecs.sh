@@ -10,8 +10,6 @@ aws ecr get-login-password --region ap-south-1 --profile "${AWS_PROFILE}" | dock
 # VERSION=latest
 if [[ -z "${VERSION}" ]]; then
   VERSION=$(git rev-parse --short=8 HEAD)
-else
-  VERSION=latest
 fi
 
 DOCKER_BUILD_TAG="${APP_NAME}:${VERSION}"

@@ -164,3 +164,56 @@ func RegisterWebHook(svc *hookers.HookerService, forceUpdate bool) echo.HandlerF
 		)
 	}
 }
+
+func ImportWebHook(svc *hookers.HookerService) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		req := &hookers.ImportHookRequest{}
+		ctx := c.Request().Context()
+
+		if err := c.Bind(req); err != nil {
+			logrus.WithContext(ctx).WithError(err).Error("failed to bind request")
+
+			return c.JSON(
+				http.StatusBadRequest,
+				apiutils.ErrorResponse{
+					ErrorCode:    apiutils.CodeWebhookRegistrationFailed,
+					ErrorMessage: apiutils.ErrInvalidRequest.Error(),
+				},
+			)
+		}
+
+		validate := validator.New()
+		if err := validate.Struct(req); err != nil {
+			logrus.WithContext(ctx).WithError(err).Error("failed to validate request")
+
+			return c.JSON(
+				http.StatusBadRequest,
+				apiutils.ErrorResponse{
+					ErrorCode:    apiutils.CodeWebhookRegistrationFailed,
+					ErrorMessage: apiutils.ErrInvalidRequest.Error(),
+				},
+			)
+		}
+
+		resp, err := svc.Import(ctx, req)
+		if err != nil {
+			logrus.WithContext(ctx).WithError(err).Error("failed to import webhook to db")
+
+			return c.JSON(
+				http.StatusInternalServerError,
+				apiutils.ErrorResponse{
+					ErrorCode:    apiutils.CodeInternalServerError,
+					ErrorMessage: apiutils.ErrInternalServerError.Error(),
+				},
+			)
+		}
+
+		return c.JSON(
+			http.StatusCreated,
+			apiutils.SuccessResponse{
+				Success: true,
+				Data:    resp,
+			},
+		)
+	}
+}

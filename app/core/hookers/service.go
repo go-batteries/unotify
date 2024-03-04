@@ -204,6 +204,31 @@ func (svc *HookerService) Register(
 	}, nil
 }
 
+func (svc *HookerService) Import(
+	ctx context.Context,
+	req *ImportHookRequest,
+) (*RegisterHookerResponse, error) {
+	logrus.WithContext(ctx).Infoln("importing web hook")
+
+	hook := &Hook{
+		Provider: req.Provider,
+		RepoID:   req.RepoID,
+		RepoPath: req.RepoPath,
+		Secrets:  req.Secret,
+	}
+
+	err := svc.repo.Update(ctx, hook)
+	if err != nil {
+		logrus.WithContext(ctx).WithError(err).Error("failed to store to db")
+		return nil, ErrFailedToPersistHook
+	}
+
+	return &RegisterHookerResponse{
+		Secret: hook.Secrets,
+		URI:    fmt.Sprintf("/webhooks/%s/%s/payload", req.Provider, req.RepoID),
+	}, nil
+}
+
 func (svc *HookerService) FindByRepoProvider(
 	ctx context.Context,
 	finder *FindHookByProvider,

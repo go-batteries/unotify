@@ -6,7 +6,6 @@
 # source ./scripts/terrawrapper.sh load-env <env-file>
 # ./scripts/terrwrapper <terraform commands>
 #
-export AWS_PROFILE="mitil"
 _TF_ENVFILE="tf.env"
 
 echo $_TF_ENVFILE
