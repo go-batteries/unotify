@@ -15,6 +15,7 @@ const (
 	CodeWebhookRegistrationFailed
 	CodeWebhookRequestParamMissing
 	CodeHookerMissing
+	CodeHookExists
 )
 
 const (
@@ -25,9 +26,10 @@ const (
 
 // errors
 var (
-	ErrInternalServerError = errors.New("internal_server_error")
-	ErrInvalidRequest      = errors.New("malformed_request")
-	ErrHooksMissing        = errors.New("unregistered_webhook")
+	ErrInternalServerError   = errors.New("internal_server_error")
+	ErrInvalidRequest        = errors.New("malformed_request")
+	ErrHooksMissing          = errors.New("unregistered_webhook")
+	ErrDuplicateRegistration = errors.New("duplicate_registration")
 )
 
 type ErrorResponse struct {

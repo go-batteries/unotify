@@ -142,6 +142,22 @@ func RegisterWebHook(svc *hookers.HookerService, forceUpdate bool) echo.HandlerF
 			)
 		}
 
+		findhook := &hookers.FindHookByProvider{
+			RepoID:   req.RepoID,
+			Provider: req.Provider,
+		}
+
+		_, err := svc.FindByRepoProvider(ctx, findhook)
+		if err == nil {
+			return c.JSON(
+				http.StatusConflict,
+				apiutils.ErrorResponse{
+					ErrorCode:    apiutils.CodeHookExists,
+					ErrorMessage: apiutils.ErrDuplicateRegistration.Error(),
+				},
+			)
+		}
+
 		resp, err := svc.Register(ctx, req)
 		if err != nil {
 			logrus.WithContext(ctx).WithError(err).Error("failed to register webhook to db")
