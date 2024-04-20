@@ -38,7 +38,7 @@ resource "aws_subnet" "dashdotdash_subnet_b" {
   cidr_block        = cidrsubnet(aws_vpc.dashdotdash_vpc.cidr_block, 8, 1)
   availability_zone = "ap-south-1b"
 
-  # map_public_ip_on_launch = true
+  map_public_ip_on_launch = true
   tags = {
     Name = "DDD_SubnetB"
   }
@@ -294,7 +294,7 @@ resource "aws_autoscaling_group" "app_server_ecs_asg" {
   name = "${var.APP_NAME}-Asg"
   vpc_zone_identifier = [
     aws_subnet.dashdotdash_subnet.id,
-     aws_subnet.dashdotdash_subnet_b.id,
+    aws_subnet.dashdotdash_subnet_b.id,
   ]
   target_group_arns = [aws_lb_target_group.app_lb_tg.arn]
 
