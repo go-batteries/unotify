@@ -92,7 +92,7 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 			return c.JSON(http.StatusInternalServerError, `{}`)
 		}
 
-		provider = hookers.GithubProvider
+		// provider = hookers.GithubProvider
 		svc := dep.HookRegistrationSvc
 		hook, err := svc.FindByRepoProvider(ctx, &hookers.FindHookByProvider{
 			Provider: provider,
@@ -125,6 +125,7 @@ func ValidateAndPublishWebhook(dep *deps.AppDeps) echo.HandlerFunc {
 		if ("sha256=" + expectedHash) != githubSignature {
 			logrus.WithContext(ctx).Error("invalid payload signature.")
 			// return here
+			return c.JSON(http.StatusBadRequest, `{}`)
 		}
 
 		ev, err := events.ScoopGithubEvents(b)

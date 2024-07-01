@@ -73,7 +73,7 @@ func (jp *JiraProcessor) ProcessEach(ctx context.Context, issueID string) worker
 		return workerpool.Result{Err: err}
 	}
 
-	logrus.Println("dlksfdslkfjdslkfjdsklfjsdlfk")
+	logrus.WithContext(ctx).Infoln("getting jira issue status")
 
 	status, err := jp.client.GetIssueStatus(ctx, issueID)
 	if err != nil {
@@ -117,7 +117,6 @@ func (jp *JiraProcessor) ProcessEach(ctx context.Context, issueID string) worker
 
 		return workerpool.Result{Err: err}
 	}
-	logrus.Println("m,xznjshmfekwfodsijf", final)
 
 	if final {
 		logrus.WithContext(ctx).Infoln(issueID, " already in terminal state:", status)

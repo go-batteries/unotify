@@ -1,0 +1,6 @@
+workers:
+  atlassian:
+    statefile: jira.hcl
+    projects:
+      - devhop
+      - soc

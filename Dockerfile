@@ -21,6 +21,7 @@ COPY --from=builder /src/server /opt/app/server
 COPY --from=builder /src/worker /opt/app/worker
 COPY --from=builder /src/bootstrap.sh /opt/app/bootstrap.sh
 COPY --from=builder /src/config/app.env /opt/app/config/app.env
+COPY --from=builder /src/config/workers.yaml /opt/app/config/workers.yaml
 COPY --from=builder /src/config/statemachines /opt/app/config/statemachines
 
 # COPY --from=builder /src/openapiv2 /opt/app/openapiv2
