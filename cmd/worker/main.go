@@ -8,11 +8,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"time"
-	"unotify/app/consumers"
 	"unotify/app/deps"
 	"unotify/app/pkg/config"
 	"unotify/app/pkg/exmachine"
-	"unotify/app/pkg/workerpool"
 	"unotify/app/processors"
 
 	"github.com/labstack/echo/v4"
@@ -90,7 +88,7 @@ func main() {
 func StartWorker(ctx context.Context,
 	cfg *config.AppConfig,
 	dep *deps.AppDeps,
-	key string,
+	provisionerName string,
 	hclConfigDir string,
 	stateCfg config.StateConfig,
 ) {
@@ -117,17 +115,11 @@ func StartWorker(ctx context.Context,
 	}
 
 	reactor := exmachine.BuildStateMachine(states...)
-
-	jp, err := processors.NewJiraProcessor(cfg, processors.DefaultJiraEventChanSize, reactor)
-	if err != nil {
-		logrus.Fatal("exiting.... ", err)
-	}
-
-	wp := workerpool.NewWorkerPool(ctx, 4, jp.ProcessEach)
-	wp.Start(ctx, jp.EventChannel)
-
-	ghc := consumers.NewGithubEventConsumer(dep.GithubResqueue)
-	go ghc.Start(ctx, "providers::github")
-
-	consumers.GithubDispatcher(ctx, ghc.EventChannel, jp.EventChannel)
+	Processor := processors.GetStagers(provisionerName)
+	Processor(
+		ctx,
+		dep,
+		cfg,
+		reactor,
+	)
 }

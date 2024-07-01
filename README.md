@@ -1,28 +1,30 @@
+# unotify
 
-### Requirements:
+Webhook based notification handler. By default this handles,
+changing multiple Jira ticket states after merge.
+The ticket names can be present in PR.
+
+## Requirements
 
 - go v1.21+
 - redis
 
-**Document Generation**
+**Document Generation**:
 
 - protoc
 - protoc-gen-go
 - protobuf
 
-
 **Deployment Support Bundle**:
 
-- terraform 
+- terraform
 - aws account
 
-
-**Worker**
+**Worker**:
 
 Worker deployed with `bash` script. Has to be moved to `kubernetes`.
 
-
-### Deployment:
+### Deployment
 
 ```shell
 AWS_ACCOUNT="" ./infraa/build/ecs.sh
@@ -31,7 +33,6 @@ AWS_ACCOUNT="" ./infraa/build/ecs.sh
 ```shell
 cd infraa/deploy && AWS_ACCOUNT="" make run
 ```
-
 
 ### Integration
 
@@ -45,34 +46,30 @@ Host: localhost:9091
 Content-Length: 150
 
 {
-	"provider": "github",
-	"repo_path": "go-batteries/webhook-test-repo",
-	"repo_id": "webhook-test-repo"
+  "provider": "github",
+  "repo_path": "go-batteries/webhook-test-repo",
+  "repo_id": "webhook-test-repo"
 }
 ```
 
 This returns, a `secret` and `uri`. The secret can't be retrieved back. And can
 only be regerated.
 
-
-
 ```json
 {
-	"success": true,
-	"data": {
-		"secret": "s-secret",
-		"uri": "/webhooks/:provider/:repo_id/payload"
-	}
+  "success": true,
+  "data": {
+    "secret": "s-secret",
+    "uri": "/webhooks/:provider/:repo_id/payload"
+  }
 }
 ```
 
-**Github Integration**
+**Github Integration**:
 
 - Copy the `secret`
 - construct the url as `https://${your_domain}/${.response.data.uri}`
 - Go to Webhook settings in github, and the the values.
-
-
 
 ### Whatisthis
 
@@ -80,13 +77,28 @@ only be regerated.
 <img src="./unotify.svg" alt="diagram" />
 </div>
 
+### State management
 
-### Considerations:
+An example state machine definition has been provided, in `./config/statemachines/jira.hcl`.
+[Read the docs](./config/statemachines/README.md).
+
+### Workers
+
+To add more backends like, check the [workers.yaml](./config/workers.yaml).
+The `projects` should match the `provisioner` in the statemachine config.
+
+To create a new backend handler like jira
+
+- Add a processor in `app/processors`
+- Register the processor to `app/processors/hub.go`
+- Add the worker configuration in `config/workers/yaml`
+
+### Considerations
 
 - **Jira** Project names **should not have dash** in **project names**.
-    - Allowed: DEV_OPS, DEVOPS, DEV$OPS, etc
-    - NotAllowed: DEV-OPS
-    - you can, but, it won't work. So better not. Will try to change it
+  - Allowed: DEV_OPS, DEVOPS, DEV$OPS, etc
+  - NotAllowed: DEV-OPS
+  - you can, but, it won't work. So better not. Will try to change it
       sometime.
 - Storage layer is `redis` for now.
 - This helps to have a publish subscribe with redis, but we also need storage.
@@ -109,15 +121,12 @@ depends on the provider.
 
 Github allows setting a secret key when the webhook is created from their UI.
 (For this requirement we only need `Releases`). So github uses this secret to
-generate a `X-Hub-Signature-256`, which is sent in header. 
+generate a `X-Hub-Signature-256`, which is sent in header.
 
 This value can be validated, by calculating the request body's signature, as
 [mentioned by github](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries#examples).
-
 
 In most cases, you will have _a single webhook endpoint per repository, served
 by a single endpoint_ . Reason being it gets harder/tricker to validate secrets
 if a single endpoint had multiple hooks, encrypted with different keys. We don't
 want that sort of complexity.
-
-
