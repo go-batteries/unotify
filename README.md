@@ -77,9 +77,7 @@ only be regerated.
 ### Whatisthis
 
 <div style="height: 200px">
-
-    ![diagram](./unotify.svg)
-
+<img src="./unotify.svg" alt="diagram" />
 </div>
 
 
