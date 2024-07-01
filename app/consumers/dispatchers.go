@@ -21,7 +21,6 @@ func GithubDispatcher(ctx context.Context, EventChannel chan string, ProcessorCh
 		}
 
 		worker.Start(ctx, pool)
-
 	}
 
 	go func(cx context.Context) {

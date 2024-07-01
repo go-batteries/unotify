@@ -31,6 +31,10 @@ func main() {
 
 	var appPort string
 	flag.StringVar(&appPort, "p", ":9093", "application port overrides env")
+
+	var workerCfgFilePath string
+	flag.StringVar(&workerCfgFilePath, "worker-cfg", "./config/workers.yaml", "config file for provisioned workers")
+
 	flag.Parse()
 
 	e := echo.New()
@@ -51,18 +55,54 @@ func main() {
 	cfg := config.BuildAppConfig(env)
 	config.SetupLogger(cfg.Env, cfg.LogLevel)
 
+	// filePath := "./config/workers.yaml"
+	wc, err := config.GetWorkerConfig(workerCfgFilePath)
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to get worker config file")
+	}
+
 	dep := deps.BuildAppDeps(cfg)
 
-	filePath, err := filepath.Abs(filepath.Join(hclConfigDir, "jira.hcl"))
+	for key := range wc.Workers {
+		StartWorker(ctx, cfg, dep, key, hclConfigDir, wc.Workers[key])
+	}
+
+	go func() {
+		logrus.Println("worker serving at port ", appPort)
+
+		if err := e.Start(appPort); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal("shutting down the server")
+		}
+	}()
+
+	<-ctx.Done()
+
+	logrus.Infoln("worker stopped")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
+}
+
+func StartWorker(ctx context.Context,
+	cfg *config.AppConfig,
+	dep *deps.AppDeps,
+	key string,
+	hclConfigDir string,
+	stateCfg config.StateConfig,
+) {
+	filePath, err := filepath.Abs(filepath.Join(hclConfigDir, stateCfg.StateFile))
 	if err != nil {
 		logrus.WithError(err).Fatal("failed to load statmachine dir from", hclConfigDir)
 	}
 
 	reader := exmachine.HCLFileReader{}
-	statenames := []string{"soc", "devhop"}
 	states := []*exmachine.StateMachine{}
 
-	for _, statename := range statenames {
+	for _, statename := range stateCfg.Projects {
 		statemach, err := exmachine.Provision(
 			ctx,
 			statename,
@@ -90,23 +130,4 @@ func main() {
 	go ghc.Start(ctx, "providers::github")
 
 	consumers.GithubDispatcher(ctx, ghc.EventChannel, jp.EventChannel)
-
-	go func() {
-		logrus.Println("worker serving at port ", appPort)
-
-		if err := e.Start(appPort); err != nil && err != http.ErrServerClosed {
-			e.Logger.Fatal("shutting down the server")
-		}
-	}()
-
-	<-ctx.Done()
-
-	logrus.Infoln("worker stopped")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
-	}
 }

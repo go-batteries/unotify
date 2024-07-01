@@ -30,12 +30,6 @@ var (
 	ErrHookNotFound         = errors.New("hook_not_registered")
 )
 
-// map[string]map[string]string
-
-// SADD providers::github repo_a repo_b
-// SADD secrets::github::repo_a secret_1 secret_2
-// Nah, this is a problem, multiple secrets per repo not allowed.
-// Switch
 // HSET providers::github repo_a secret_a repo_b secret_b
 // SADD providers::github repo_a repo_b
 var (
@@ -237,7 +231,7 @@ func (svc *HookerService) FindByRepoProvider(
 
 	hook, err := svc.repo.Find(ctx, finder)
 	if err != nil {
-		logrus.WithContext(ctx).WithError(err).Error("failed to store to db")
+		logrus.WithContext(ctx).WithError(err).Error("failed to find hooks in db")
 		return nil, ErrFailedToPersistHook
 	}
 

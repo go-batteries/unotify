@@ -1,8 +1,11 @@
 package config
 
 import (
+	"os"
+
 	"github.com/go-batteries/diaper"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 type AppConfig struct {
@@ -38,4 +41,27 @@ func BuildAppConfig(env string) *AppConfig {
 	}
 
 	return cfg
+}
+
+type StateConfig struct {
+	StateFile string   `yaml:"statefile"`
+	Projects  []string `yaml:"projects"`
+}
+
+type WorkerConfig struct {
+	Workers map[string]StateConfig
+}
+
+func GetWorkerConfig(filePath string) (*WorkerConfig, error) {
+	reader, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	wc := WorkerConfig{}
+	if err := yaml.Unmarshal(reader, &wc); err != nil {
+		return nil, err
+	}
+
+	return &wc, nil
 }

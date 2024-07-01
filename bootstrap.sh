@@ -8,6 +8,7 @@ echo "Start server"
 
 echo "Start Worker"
 /opt/app/worker \
-  -hcl-dir /opt/app/config/statemachines 2>&1 &
+  -hcl-dir /opt/app/config/statemachines \
+  -worker-cfg /opt/app/config/workers.yaml 2>&1 &
 
 wait

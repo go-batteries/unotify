@@ -51,7 +51,7 @@ func main() {
 		return c.String(http.StatusOK, "3")
 	})
 
-	group.POST("/webhooks/github/:repo/payload", webhook.ValidateAndPublishWebhook(dep))
+	group.POST("/webhooks/:provider/:repo/payload", webhook.ValidateAndPublishWebhook(dep))
 
 	// remove this from load balancer
 	// to put it back, do group.PATCH
